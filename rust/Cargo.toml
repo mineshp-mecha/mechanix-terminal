@@ -1,0 +1,18 @@
+[package]
+name = "rust_lib_flutter_alacritty"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+flutter_rust_bridge = "=2.11.1"
+alacritty_terminal = { path = "../../alacritty/alacritty_terminal" }
+portable-pty = "0.8"
+vte = "0.15.0"
+parking_lot = "0.12.0"
+bitflags = "2.4.1"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(frb_expand)'] }

@@ -1,0 +1,104 @@
+use crate::frb_generated::StreamSink;
+use crate::terminal::{FlutterTerminal, TerminalFrame};
+use parking_lot::RwLock;
+use std::collections::HashMap;
+use std::sync::atomic::{AtomicU32, Ordering};
+use std::time::Duration;
+
+// Re-export needed types for FRB
+pub use crate::terminal::TerminalCell;
+
+use std::sync::OnceLock;
+
+static NEXT_ID: AtomicU32 = AtomicU32::new(1);
+
+fn terminals() -> &'static RwLock<HashMap<u32, FlutterTerminal>> {
+    static INSTANCE: OnceLock<RwLock<HashMap<u32, FlutterTerminal>>> = OnceLock::new();
+    INSTANCE.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+fn active_id() -> &'static RwLock<u32> {
+    static INSTANCE: OnceLock<RwLock<u32>> = OnceLock::new();
+    INSTANCE.get_or_init(|| RwLock::new(0))
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn add_terminal(rows: u16, cols: u16) -> u32 {
+    let id = NEXT_ID.fetch_add(1, Ordering::SeqCst);
+    let terminal = FlutterTerminal::new(rows, cols);
+    let mut lock = terminals().write();
+    lock.insert(id, terminal);
+    
+    let mut active_lock = active_id().write();
+    if *active_lock == 0 {
+        *active_lock = id;
+    }
+    
+    id
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn remove_terminal(id: u32) {
+    let mut lock = terminals().write();
+    lock.remove(&id);
+    
+    let mut active_lock = active_id().write();
+    if *active_lock == id {
+        if let Some(&new_id) = lock.keys().next() {
+            *active_lock = new_id;
+        } else {
+            *active_lock = 0;
+        }
+    }
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn set_active_terminal(id: u32) {
+    let mut active_lock = active_id().write();
+    *active_lock = id;
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn get_terminal_frame(id: u32) -> Option<TerminalFrame> {
+    let lock = terminals().read();
+    lock.get(&id).map(|t| {
+        let frame = t.get_frame(id);
+        t.set_dirty(false);
+        frame
+    })
+}
+
+pub fn create_terminal_stream(id: u32, sink: StreamSink<TerminalFrame>) {
+    std::thread::spawn(move || {
+        loop {
+            {
+                let lock = terminals().read();
+                if let Some(t) = lock.get(&id) {
+                    if t.is_dirty() {
+                        if let Err(_) = sink.add(t.get_frame(id)) {
+                            return;
+                        }
+                        t.set_dirty(false);
+                    }
+                } else {
+                    // Terminal removed, stop thread
+                    return;
+                }
+            }
+            std::thread::sleep(Duration::from_millis(16));
+        }
+    });
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn send_input(id: u32, input: String) {
+    let lock = terminals().read();
+    if let Some(t) = lock.get(&id) {
+        t.write(input);
+    }
+}
+
+#[flutter_rust_bridge::frb(init)]
+pub fn init_app() {
+    flutter_rust_bridge::setup_default_user_utils();
+}
