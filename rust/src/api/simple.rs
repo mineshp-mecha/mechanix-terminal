@@ -1,9 +1,7 @@
-use crate::frb_generated::StreamSink;
 use crate::terminal::{FlutterTerminal, TerminalFrame};
 use parking_lot::RwLock;
 use std::collections::HashMap;
 use std::sync::atomic::{AtomicU32, Ordering};
-use std::time::Duration;
 
 // Re-export needed types for FRB
 pub use crate::terminal::TerminalCell;
@@ -61,33 +59,7 @@ pub fn set_active_terminal(id: u32) {
 #[flutter_rust_bridge::frb(sync)]
 pub fn get_terminal_frame(id: u32) -> Option<TerminalFrame> {
     let lock = terminals().read();
-    lock.get(&id).map(|t| {
-        let frame = t.get_frame(id);
-        t.set_dirty(false);
-        frame
-    })
-}
-
-pub fn create_terminal_stream(id: u32, sink: StreamSink<TerminalFrame>) {
-    std::thread::spawn(move || {
-        loop {
-            {
-                let lock = terminals().read();
-                if let Some(t) = lock.get(&id) {
-                    if t.is_dirty() {
-                        if let Err(_) = sink.add(t.get_frame(id)) {
-                            return;
-                        }
-                        t.set_dirty(false);
-                    }
-                } else {
-                    // Terminal removed, stop thread
-                    return;
-                }
-            }
-            std::thread::sleep(Duration::from_millis(16));
-        }
-    });
+    lock.get(&id).map(|t| t.get_frame())
 }
 
 #[flutter_rust_bridge::frb(sync)]

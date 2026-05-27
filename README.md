@@ -108,12 +108,12 @@ In embedded environments (like flutter-elinux), system fonts might be restricted
 LD_LIBRARY_PATH=./lib ./flutter_alacritty -b . -s 1 -w 540 -h 620
 ```
 
-##
+## cross compile the
 
 you need to manually cross-compile the Rust library for ARM64 and ensure it is placed in the lib/ directory of your deployment bundle.
 cd flutter_alacritty/rust
 
-# Use CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER to point to your cross-compiler
+## Use CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER to point to your cross-compiler
 
 ```bash
 CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \

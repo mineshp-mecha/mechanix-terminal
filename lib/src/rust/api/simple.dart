@@ -21,8 +21,5 @@ void setActiveTerminal({required int id}) =>
 TerminalFrame? getTerminalFrame({required int id}) =>
     RustLib.instance.api.crateApiSimpleGetTerminalFrame(id: id);
 
-Stream<TerminalFrame> createTerminalStream({required int id}) =>
-    RustLib.instance.api.crateApiSimpleCreateTerminalStream(id: id);
-
 void sendInput({required int id, required String input}) =>
     RustLib.instance.api.crateApiSimpleSendInput(id: id, input: input);

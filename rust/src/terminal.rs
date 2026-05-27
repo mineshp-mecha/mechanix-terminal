@@ -11,16 +11,10 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
-use std::sync::atomic::{AtomicBool, Ordering};
-
 pub struct TerminalFrame {
-    pub terminal_id: u32,
     pub rows: u16,
     pub cols: u16,
-    pub cells: String,
-    pub fg: Vec<u32>,
-    pub bg: Vec<u32>,
-    pub bold: Vec<u8>,
+    pub cells: Vec<TerminalCell>,
     pub cursor_x: u16,
     pub cursor_y: u16,
 }
@@ -39,7 +33,6 @@ pub struct FlutterTerminal {
     term: Arc<RwLock<Term<VoidListener>>>,
     master_pty: Arc<RwLock<SyncMasterPty>>,
     writer: Arc<RwLock<SyncWriter>>,
-    dirty: Arc<AtomicBool>,
 }
 
 struct SyncWriter(Box<dyn Write + Send>);
@@ -91,8 +84,6 @@ impl FlutterTerminal {
         let reader = pair.master.try_clone_reader().unwrap();
         let writer = pair.master.take_writer().unwrap();
         let term_clone = Arc::clone(&term);
-        let dirty = Arc::new(AtomicBool::new(true));
-        let dirty_clone = Arc::clone(&dirty);
 
         thread::spawn(move || {
             let mut processor: ansi::Processor<NoopTimeout> = ansi::Processor::new();
@@ -104,7 +95,6 @@ impl FlutterTerminal {
                     Ok(n) => {
                         let mut term_lock = term_clone.write();
                         processor.advance(&mut *term_lock, &buf[..n]);
-                        dirty_clone.store(true, Ordering::SeqCst);
                     }
                     Err(_) => break,
                 }
@@ -115,16 +105,7 @@ impl FlutterTerminal {
             term,
             master_pty: Arc::new(RwLock::new(SyncMasterPty(pair.master))),
             writer: Arc::new(RwLock::new(SyncWriter(writer))),
-            dirty,
         }
-    }
-
-    pub fn is_dirty(&self) -> bool {
-        self.dirty.load(Ordering::SeqCst)
-    }
-
-    pub fn set_dirty(&self, value: bool) {
-        self.dirty.store(value, Ordering::SeqCst);
     }
 
     pub fn write(&self, input: String) {
@@ -133,36 +114,30 @@ impl FlutterTerminal {
         writer.0.flush().unwrap();
     }
 
-    pub fn get_frame(&self, id: u32) -> TerminalFrame {
+    pub fn get_frame(&self) -> TerminalFrame {
         let term = self.term.read();
         let grid = term.grid();
         
+        let mut cells = Vec::new();
         let rows = term.screen_lines();
         let cols = term.columns();
-        
-        let mut cells = String::with_capacity(rows * cols);
-        let mut fg = Vec::with_capacity(rows * cols);
-        let mut bg = Vec::with_capacity(rows * cols);
-        let mut bold = Vec::with_capacity(rows * cols);
 
         for line in 0..rows {
             for col in 0..cols {
                 let cell = &grid[Line(line as i32)][Column(col)];
-                cells.push(cell.c);
-                fg.push(0xFFFFFFFF);
-                bg.push(0xFF000000);
-                bold.push(if cell.flags().contains(Flags::BOLD) { 1 } else { 0 });
+                cells.push(TerminalCell {
+                    content: cell.c.to_string(),
+                    fg: 0xFFFFFFFF,
+                    bg: 0xFF000000,
+                    bold: cell.flags().contains(Flags::BOLD),
+                });
             }
         }
 
         TerminalFrame {
-            terminal_id: id,
             rows: rows as u16,
             cols: cols as u16,
             cells,
-            fg,
-            bg,
-            bold,
             cursor_x: term.grid().cursor.point.column.0 as u16,
             cursor_y: term.grid().cursor.point.line.0 as u16,
         }
