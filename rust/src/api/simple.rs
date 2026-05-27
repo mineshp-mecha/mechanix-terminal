@@ -8,6 +8,9 @@ pub use crate::terminal::TerminalCell;
 
 use std::sync::OnceLock;
 
+use std::time::Duration;
+use std::thread;
+
 static NEXT_ID: AtomicU32 = AtomicU32::new(1);
 
 fn terminals() -> &'static RwLock<HashMap<u32, FlutterTerminal>> {
@@ -56,10 +59,26 @@ pub fn set_active_terminal(id: u32) {
     *active_lock = id;
 }
 
+use crate::frb_generated::StreamSink;
+
+pub fn create_terminal_stream(sink: StreamSink<u32>) {
+    thread::spawn(move || loop {
+        {
+            let lock = terminals().read();
+            for (&id, terminal) in lock.iter() {
+                if terminal.dirty.load(Ordering::SeqCst) {
+                    let _ = sink.add(id);
+                }
+            }
+        }
+        thread::sleep(Duration::from_millis(16));
+    });
+}
+
 #[flutter_rust_bridge::frb(sync)]
 pub fn get_terminal_frame(id: u32) -> Option<TerminalFrame> {
     let lock = terminals().read();
-    lock.get(&id).map(|t| t.get_frame())
+    lock.get(&id).and_then(|t| t.get_frame())
 }
 
 #[flutter_rust_bridge::frb(sync)]

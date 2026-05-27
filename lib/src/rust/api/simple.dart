@@ -18,6 +18,9 @@ void removeTerminal({required int id}) =>
 void setActiveTerminal({required int id}) =>
     RustLib.instance.api.crateApiSimpleSetActiveTerminal(id: id);
 
+Stream<int> createTerminalStream() =>
+    RustLib.instance.api.crateApiSimpleCreateTerminalStream();
+
 TerminalFrame? getTerminalFrame({required int id}) =>
     RustLib.instance.api.crateApiSimpleGetTerminalFrame(id: id);
 

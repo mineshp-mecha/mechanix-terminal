@@ -20,25 +20,25 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   });
 
   @protected
-  String dco_decode_String(dynamic raw);
+  AnyhowException dco_decode_AnyhowException(dynamic raw);
 
   @protected
-  bool dco_decode_bool(dynamic raw);
+  RustStreamSink<int> dco_decode_StreamSink_u_32_Sse(dynamic raw);
+
+  @protected
+  String dco_decode_String(dynamic raw);
 
   @protected
   TerminalFrame dco_decode_box_autoadd_terminal_frame(dynamic raw);
 
   @protected
+  Uint32List dco_decode_list_prim_u_32_strict(dynamic raw);
+
+  @protected
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
-  List<TerminalCell> dco_decode_list_terminal_cell(dynamic raw);
-
-  @protected
   TerminalFrame? dco_decode_opt_box_autoadd_terminal_frame(dynamic raw);
-
-  @protected
-  TerminalCell dco_decode_terminal_cell(dynamic raw);
 
   @protected
   TerminalFrame dco_decode_terminal_frame(dynamic raw);
@@ -56,10 +56,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void dco_decode_unit(dynamic raw);
 
   @protected
-  String sse_decode_String(SseDeserializer deserializer);
+  AnyhowException sse_decode_AnyhowException(SseDeserializer deserializer);
 
   @protected
-  bool sse_decode_bool(SseDeserializer deserializer);
+  RustStreamSink<int> sse_decode_StreamSink_u_32_Sse(
+    SseDeserializer deserializer,
+  );
+
+  @protected
+  String sse_decode_String(SseDeserializer deserializer);
 
   @protected
   TerminalFrame sse_decode_box_autoadd_terminal_frame(
@@ -67,20 +72,15 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
+  Uint32List sse_decode_list_prim_u_32_strict(SseDeserializer deserializer);
 
   @protected
-  List<TerminalCell> sse_decode_list_terminal_cell(
-    SseDeserializer deserializer,
-  );
+  Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
   TerminalFrame? sse_decode_opt_box_autoadd_terminal_frame(
     SseDeserializer deserializer,
   );
-
-  @protected
-  TerminalCell sse_decode_terminal_cell(SseDeserializer deserializer);
 
   @protected
   TerminalFrame sse_decode_terminal_frame(SseDeserializer deserializer);
@@ -101,14 +101,32 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   int sse_decode_i_32(SseDeserializer deserializer);
 
   @protected
-  void sse_encode_String(String self, SseSerializer serializer);
+  bool sse_decode_bool(SseDeserializer deserializer);
 
   @protected
-  void sse_encode_bool(bool self, SseSerializer serializer);
+  void sse_encode_AnyhowException(
+    AnyhowException self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_StreamSink_u_32_Sse(
+    RustStreamSink<int> self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
   void sse_encode_box_autoadd_terminal_frame(
     TerminalFrame self,
+    SseSerializer serializer,
+  );
+
+  @protected
+  void sse_encode_list_prim_u_32_strict(
+    Uint32List self,
     SseSerializer serializer,
   );
 
@@ -119,19 +137,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_list_terminal_cell(
-    List<TerminalCell> self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_opt_box_autoadd_terminal_frame(
     TerminalFrame? self,
     SseSerializer serializer,
   );
-
-  @protected
-  void sse_encode_terminal_cell(TerminalCell self, SseSerializer serializer);
 
   @protected
   void sse_encode_terminal_frame(TerminalFrame self, SseSerializer serializer);
@@ -150,6 +159,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
+
+  @protected
+  void sse_encode_bool(bool self, SseSerializer serializer);
 }
 
 // Section: wire_class

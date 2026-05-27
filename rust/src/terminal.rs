@@ -11,10 +11,13 @@ use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
 
+use std::sync::atomic::{AtomicBool, Ordering};
+
 pub struct TerminalFrame {
     pub rows: u16,
     pub cols: u16,
-    pub cells: Vec<TerminalCell>,
+    pub content: String,
+    pub attributes: Vec<u32>, // Packed: 24 bits for FG/BG, 8 bits for flags
     pub cursor_x: u16,
     pub cursor_y: u16,
 }
@@ -33,6 +36,7 @@ pub struct FlutterTerminal {
     term: Arc<RwLock<Term<VoidListener>>>,
     master_pty: Arc<RwLock<SyncMasterPty>>,
     writer: Arc<RwLock<SyncWriter>>,
+    pub dirty: Arc<AtomicBool>,
 }
 
 struct SyncWriter(Box<dyn Write + Send>);
@@ -75,6 +79,7 @@ impl FlutterTerminal {
         let dims = SimpleDimensions { cols: cols as usize, rows: rows as usize };
         let term = Term::new(Config::default(), &dims, VoidListener);
         let term = Arc::new(RwLock::new(term));
+        let dirty = Arc::new(AtomicBool::new(true));
 
         let mut _child = pair
             .slave
@@ -84,6 +89,7 @@ impl FlutterTerminal {
         let reader = pair.master.try_clone_reader().unwrap();
         let writer = pair.master.take_writer().unwrap();
         let term_clone = Arc::clone(&term);
+        let dirty_clone = Arc::clone(&dirty);
 
         thread::spawn(move || {
             let mut processor: ansi::Processor<NoopTimeout> = ansi::Processor::new();
@@ -95,6 +101,7 @@ impl FlutterTerminal {
                     Ok(n) => {
                         let mut term_lock = term_clone.write();
                         processor.advance(&mut *term_lock, &buf[..n]);
+                        dirty_clone.store(true, Ordering::SeqCst);
                     }
                     Err(_) => break,
                 }
@@ -105,6 +112,7 @@ impl FlutterTerminal {
             term,
             master_pty: Arc::new(RwLock::new(SyncMasterPty(pair.master))),
             writer: Arc::new(RwLock::new(SyncWriter(writer))),
+            dirty,
         }
     }
 
@@ -114,32 +122,41 @@ impl FlutterTerminal {
         writer.0.flush().unwrap();
     }
 
-    pub fn get_frame(&self) -> TerminalFrame {
+    pub fn get_frame(&self) -> Option<TerminalFrame> {
+        if !self.dirty.swap(false, Ordering::SeqCst) {
+            return None;
+        }
+
         let term = self.term.read();
         let grid = term.grid();
         
-        let mut cells = Vec::new();
+        let mut content = String::new();
         let rows = term.screen_lines();
         let cols = term.columns();
+        let mut attributes = Vec::with_capacity(rows * cols);
 
         for line in 0..rows {
             for col in 0..cols {
                 let cell = &grid[Line(line as i32)][Column(col)];
-                cells.push(TerminalCell {
-                    content: cell.c.to_string(),
-                    fg: 0xFFFFFFFF,
-                    bg: 0xFF000000,
-                    bold: cell.flags().contains(Flags::BOLD),
-                });
+                content.push(cell.c);
+                
+                // For now, just a simple flag. 
+                // We could pack colors here if needed.
+                let mut attr = 0u32;
+                if cell.flags().contains(Flags::BOLD) {
+                    attr |= 1;
+                }
+                attributes.push(attr);
             }
         }
 
-        TerminalFrame {
+        Some(TerminalFrame {
             rows: rows as u16,
             cols: cols as u16,
-            cells,
+            content,
+            attributes,
             cursor_x: term.grid().cursor.point.column.0 as u16,
             cursor_y: term.grid().cursor.point.line.0 as u16,
-        }
+        })
     }
 }

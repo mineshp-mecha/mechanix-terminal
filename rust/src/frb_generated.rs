@@ -37,7 +37,7 @@ flutter_rust_bridge::frb_generated_boilerplate!(
     default_rust_auto_opaque = RustAutoOpaqueMoi,
 );
 pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_VERSION: &str = "2.11.1";
-pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -1557562351;
+pub(crate) const FLUTTER_RUST_BRIDGE_CODEGEN_CONTENT_HASH: i32 = -444097291;
 
 // Section: executor
 
@@ -74,6 +74,44 @@ fn wire__crate__api__simple__add_terminal_impl(
                     Result::<_, ()>::Ok(crate::api::simple::add_terminal(api_rows, api_cols))?;
                 Ok(output_ok)
             })())
+        },
+    )
+}
+fn wire__crate__api__simple__create_terminal_stream_impl(
+    port_: flutter_rust_bridge::for_generated::MessagePort,
+    ptr_: flutter_rust_bridge::for_generated::PlatformGeneralizedUint8ListPtr,
+    rust_vec_len_: i32,
+    data_len_: i32,
+) {
+    FLUTTER_RUST_BRIDGE_HANDLER.wrap_normal::<flutter_rust_bridge::for_generated::SseCodec, _, _>(
+        flutter_rust_bridge::for_generated::TaskInfo {
+            debug_name: "create_terminal_stream",
+            port: Some(port_),
+            mode: flutter_rust_bridge::for_generated::FfiCallMode::Normal,
+        },
+        move || {
+            let message = unsafe {
+                flutter_rust_bridge::for_generated::Dart2RustMessageSse::from_wire(
+                    ptr_,
+                    rust_vec_len_,
+                    data_len_,
+                )
+            };
+            let mut deserializer =
+                flutter_rust_bridge::for_generated::SseDeserializer::new(message);
+            let api_sink =
+                <StreamSink<u32, flutter_rust_bridge::for_generated::SseCodec>>::sse_decode(
+                    &mut deserializer,
+                );
+            deserializer.end();
+            move |context| {
+                transform_result_sse::<_, ()>((move || {
+                    let output_ok = Result::<_, ()>::Ok({
+                        crate::api::simple::create_terminal_stream(api_sink);
+                    })?;
+                    Ok(output_ok)
+                })())
+            }
         },
     )
 }
@@ -242,6 +280,22 @@ fn wire__crate__api__simple__set_active_terminal_impl(
 
 // Section: dart2rust
 
+impl SseDecode for flutter_rust_bridge::for_generated::anyhow::Error {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <String>::sse_decode(deserializer);
+        return flutter_rust_bridge::for_generated::anyhow::anyhow!("{}", inner);
+    }
+}
+
+impl SseDecode for StreamSink<u32, flutter_rust_bridge::for_generated::SseCodec> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        let mut inner = <String>::sse_decode(deserializer);
+        return StreamSink::deserialize(inner);
+    }
+}
+
 impl SseDecode for String {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
@@ -250,10 +304,15 @@ impl SseDecode for String {
     }
 }
 
-impl SseDecode for bool {
+impl SseDecode for Vec<u32> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        deserializer.cursor.read_u8().unwrap() != 0
+        let mut len_ = <i32>::sse_decode(deserializer);
+        let mut ans_ = vec![];
+        for idx_ in 0..len_ {
+            ans_.push(<u32>::sse_decode(deserializer));
+        }
+        return ans_;
     }
 }
 
@@ -264,18 +323,6 @@ impl SseDecode for Vec<u8> {
         let mut ans_ = vec![];
         for idx_ in 0..len_ {
             ans_.push(<u8>::sse_decode(deserializer));
-        }
-        return ans_;
-    }
-}
-
-impl SseDecode for Vec<crate::terminal::TerminalCell> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut len_ = <i32>::sse_decode(deserializer);
-        let mut ans_ = vec![];
-        for idx_ in 0..len_ {
-            ans_.push(<crate::terminal::TerminalCell>::sse_decode(deserializer));
         }
         return ans_;
     }
@@ -292,34 +339,20 @@ impl SseDecode for Option<crate::terminal::TerminalFrame> {
     }
 }
 
-impl SseDecode for crate::terminal::TerminalCell {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
-        let mut var_content = <String>::sse_decode(deserializer);
-        let mut var_fg = <u32>::sse_decode(deserializer);
-        let mut var_bg = <u32>::sse_decode(deserializer);
-        let mut var_bold = <bool>::sse_decode(deserializer);
-        return crate::terminal::TerminalCell {
-            content: var_content,
-            fg: var_fg,
-            bg: var_bg,
-            bold: var_bold,
-        };
-    }
-}
-
 impl SseDecode for crate::terminal::TerminalFrame {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
         let mut var_rows = <u16>::sse_decode(deserializer);
         let mut var_cols = <u16>::sse_decode(deserializer);
-        let mut var_cells = <Vec<crate::terminal::TerminalCell>>::sse_decode(deserializer);
+        let mut var_content = <String>::sse_decode(deserializer);
+        let mut var_attributes = <Vec<u32>>::sse_decode(deserializer);
         let mut var_cursorX = <u16>::sse_decode(deserializer);
         let mut var_cursorY = <u16>::sse_decode(deserializer);
         return crate::terminal::TerminalFrame {
             rows: var_rows,
             cols: var_cols,
-            cells: var_cells,
+            content: var_content,
+            attributes: var_attributes,
             cursor_x: var_cursorX,
             cursor_y: var_cursorY,
         };
@@ -359,6 +392,13 @@ impl SseDecode for i32 {
     }
 }
 
+impl SseDecode for bool {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_decode(deserializer: &mut flutter_rust_bridge::for_generated::SseDeserializer) -> Self {
+        deserializer.cursor.read_u8().unwrap() != 0
+    }
+}
+
 fn pde_ffi_dispatcher_primary_impl(
     func_id: i32,
     port: flutter_rust_bridge::for_generated::MessagePort,
@@ -368,7 +408,10 @@ fn pde_ffi_dispatcher_primary_impl(
 ) {
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
-        3 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
+        2 => {
+            wire__crate__api__simple__create_terminal_stream_impl(port, ptr, rust_vec_len, data_len)
+        }
+        4 => wire__crate__api__simple__init_app_impl(port, ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -382,10 +425,10 @@ fn pde_ffi_dispatcher_sync_impl(
     // Codec=Pde (Serialization + dispatch), see doc to use other codecs
     match func_id {
         1 => wire__crate__api__simple__add_terminal_impl(ptr, rust_vec_len, data_len),
-        2 => wire__crate__api__simple__get_terminal_frame_impl(ptr, rust_vec_len, data_len),
-        4 => wire__crate__api__simple__remove_terminal_impl(ptr, rust_vec_len, data_len),
-        5 => wire__crate__api__simple__send_input_impl(ptr, rust_vec_len, data_len),
-        6 => wire__crate__api__simple__set_active_terminal_impl(ptr, rust_vec_len, data_len),
+        3 => wire__crate__api__simple__get_terminal_frame_impl(ptr, rust_vec_len, data_len),
+        5 => wire__crate__api__simple__remove_terminal_impl(ptr, rust_vec_len, data_len),
+        6 => wire__crate__api__simple__send_input_impl(ptr, rust_vec_len, data_len),
+        7 => wire__crate__api__simple__set_active_terminal_impl(ptr, rust_vec_len, data_len),
         _ => unreachable!(),
     }
 }
@@ -393,32 +436,13 @@ fn pde_ffi_dispatcher_sync_impl(
 // Section: rust2dart
 
 // Codec=Dco (DartCObject based), see doc to use other codecs
-impl flutter_rust_bridge::IntoDart for crate::terminal::TerminalCell {
-    fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
-        [
-            self.content.into_into_dart().into_dart(),
-            self.fg.into_into_dart().into_dart(),
-            self.bg.into_into_dart().into_dart(),
-            self.bold.into_into_dart().into_dart(),
-        ]
-        .into_dart()
-    }
-}
-impl flutter_rust_bridge::for_generated::IntoDartExceptPrimitive for crate::terminal::TerminalCell {}
-impl flutter_rust_bridge::IntoIntoDart<crate::terminal::TerminalCell>
-    for crate::terminal::TerminalCell
-{
-    fn into_into_dart(self) -> crate::terminal::TerminalCell {
-        self
-    }
-}
-// Codec=Dco (DartCObject based), see doc to use other codecs
 impl flutter_rust_bridge::IntoDart for crate::terminal::TerminalFrame {
     fn into_dart(self) -> flutter_rust_bridge::for_generated::DartAbi {
         [
             self.rows.into_into_dart().into_dart(),
             self.cols.into_into_dart().into_dart(),
-            self.cells.into_into_dart().into_dart(),
+            self.content.into_into_dart().into_dart(),
+            self.attributes.into_into_dart().into_dart(),
             self.cursor_x.into_into_dart().into_dart(),
             self.cursor_y.into_into_dart().into_dart(),
         ]
@@ -437,6 +461,20 @@ impl flutter_rust_bridge::IntoIntoDart<crate::terminal::TerminalFrame>
     }
 }
 
+impl SseEncode for flutter_rust_bridge::for_generated::anyhow::Error {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        <String>::sse_encode(format!("{:?}", self), serializer);
+    }
+}
+
+impl SseEncode for StreamSink<u32, flutter_rust_bridge::for_generated::SseCodec> {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        unimplemented!("")
+    }
+}
+
 impl SseEncode for String {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
@@ -444,10 +482,13 @@ impl SseEncode for String {
     }
 }
 
-impl SseEncode for bool {
+impl SseEncode for Vec<u32> {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        serializer.cursor.write_u8(self as _).unwrap();
+        <i32>::sse_encode(self.len() as _, serializer);
+        for item in self {
+            <u32>::sse_encode(item, serializer);
+        }
     }
 }
 
@@ -457,16 +498,6 @@ impl SseEncode for Vec<u8> {
         <i32>::sse_encode(self.len() as _, serializer);
         for item in self {
             <u8>::sse_encode(item, serializer);
-        }
-    }
-}
-
-impl SseEncode for Vec<crate::terminal::TerminalCell> {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <i32>::sse_encode(self.len() as _, serializer);
-        for item in self {
-            <crate::terminal::TerminalCell>::sse_encode(item, serializer);
         }
     }
 }
@@ -481,22 +512,13 @@ impl SseEncode for Option<crate::terminal::TerminalFrame> {
     }
 }
 
-impl SseEncode for crate::terminal::TerminalCell {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
-        <String>::sse_encode(self.content, serializer);
-        <u32>::sse_encode(self.fg, serializer);
-        <u32>::sse_encode(self.bg, serializer);
-        <bool>::sse_encode(self.bold, serializer);
-    }
-}
-
 impl SseEncode for crate::terminal::TerminalFrame {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         <u16>::sse_encode(self.rows, serializer);
         <u16>::sse_encode(self.cols, serializer);
-        <Vec<crate::terminal::TerminalCell>>::sse_encode(self.cells, serializer);
+        <String>::sse_encode(self.content, serializer);
+        <Vec<u32>>::sse_encode(self.attributes, serializer);
         <u16>::sse_encode(self.cursor_x, serializer);
         <u16>::sse_encode(self.cursor_y, serializer);
     }
@@ -532,6 +554,13 @@ impl SseEncode for i32 {
     // Codec=Sse (Serialization based), see doc to use other codecs
     fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
         serializer.cursor.write_i32::<NativeEndian>(self).unwrap();
+    }
+}
+
+impl SseEncode for bool {
+    // Codec=Sse (Serialization based), see doc to use other codecs
+    fn sse_encode(self, serializer: &mut flutter_rust_bridge::for_generated::SseSerializer) {
+        serializer.cursor.write_u8(self as _).unwrap();
     }
 }
 

@@ -6,45 +6,19 @@
 import 'frb_generated.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-class TerminalCell {
-  final String content;
-  final int fg;
-  final int bg;
-  final bool bold;
-
-  const TerminalCell({
-    required this.content,
-    required this.fg,
-    required this.bg,
-    required this.bold,
-  });
-
-  @override
-  int get hashCode =>
-      content.hashCode ^ fg.hashCode ^ bg.hashCode ^ bold.hashCode;
-
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is TerminalCell &&
-          runtimeType == other.runtimeType &&
-          content == other.content &&
-          fg == other.fg &&
-          bg == other.bg &&
-          bold == other.bold;
-}
-
 class TerminalFrame {
   final int rows;
   final int cols;
-  final List<TerminalCell> cells;
+  final String content;
+  final Uint32List attributes;
   final int cursorX;
   final int cursorY;
 
   const TerminalFrame({
     required this.rows,
     required this.cols,
-    required this.cells,
+    required this.content,
+    required this.attributes,
     required this.cursorX,
     required this.cursorY,
   });
@@ -53,7 +27,8 @@ class TerminalFrame {
   int get hashCode =>
       rows.hashCode ^
       cols.hashCode ^
-      cells.hashCode ^
+      content.hashCode ^
+      attributes.hashCode ^
       cursorX.hashCode ^
       cursorY.hashCode;
 
@@ -64,7 +39,8 @@ class TerminalFrame {
           runtimeType == other.runtimeType &&
           rows == other.rows &&
           cols == other.cols &&
-          cells == other.cells &&
+          content == other.content &&
+          attributes == other.attributes &&
           cursorX == other.cursorX &&
           cursorY == other.cursorY;
 }
