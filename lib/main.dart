@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:ui' as ui;
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_alacritty/src/rust/api/simple.dart';
@@ -301,6 +302,11 @@ class _TerminalViewState extends State<TerminalView>
   StreamSubscription? _subscription;
   final FocusNode _focusNode = FocusNode();
 
+  // ── SCROLL STATE TRACKING ──────────────────────────────────────────────────
+  double _dragDistance = 0.0;
+  // Estimate height per line dynamically based on font size
+  double get _lineHeight => widget.fontSize * 1.3;
+
   @override
   bool get wantKeepAlive => true;
 
@@ -333,7 +339,7 @@ class _TerminalViewState extends State<TerminalView>
       oldWidget.tabController.removeListener(_handleTabChange);
       widget.tabController.addListener(_handleTabChange);
 
-      if (widget.tabController.index == widget.TerminalVindex) {
+      if (widget.tabController.index == widget.index) {
         _activateTerminal();
       }
     }
@@ -365,12 +371,14 @@ class _TerminalViewState extends State<TerminalView>
     }
   }
 
+  /// Converts a Flutter KeyEvent into terminal strings or history sequences.
   String? _keyEventToTerminalInput(KeyEvent event) {
     final key = event.logicalKey;
     final isShift = HardwareKeyboard.instance.isShiftPressed;
     final isCtrl = HardwareKeyboard.instance.isControlPressed;
     final isAlt = HardwareKeyboard.instance.isAltPressed;
 
+    // ── Ctrl shortcuts ────────────────────────────────────────────────────────
     if (isCtrl && !isAlt) {
       if (key == LogicalKeyboardKey.keyC) return '\x03';
       if (key == LogicalKeyboardKey.keyD) return '\x04';
@@ -404,6 +412,7 @@ class _TerminalViewState extends State<TerminalView>
       if (key == LogicalKeyboardKey.delete) return '\x1b[3;5~';
     }
 
+    // ── Alt (Meta) shortcuts ──────────────────────────────────────────────────
     if (isAlt && !isCtrl) {
       if (key == LogicalKeyboardKey.keyB) return '\x1bb';
       if (key == LogicalKeyboardKey.keyF) return '\x1bf';
@@ -425,6 +434,7 @@ class _TerminalViewState extends State<TerminalView>
       if (key == LogicalKeyboardKey.arrowRight) return '\x1b[1;3C';
     }
 
+    // ── Shift shortcuts ───────────────────────────────────────────────────────
     if (isShift) {
       if (key == LogicalKeyboardKey.arrowUp) return '\x1b[1;2A';
       if (key == LogicalKeyboardKey.arrowDown) return '\x1b[1;2B';
@@ -433,6 +443,7 @@ class _TerminalViewState extends State<TerminalView>
       if (key == LogicalKeyboardKey.tab) return '\x1b[Z';
     }
 
+    // ── Special / Navigation & Command History keys ───────────────────────────
     if (key == LogicalKeyboardKey.enter) return '\r';
     if (key == LogicalKeyboardKey.backspace) return '\x7f';
     if (key == LogicalKeyboardKey.tab) return '\t';
@@ -443,11 +454,15 @@ class _TerminalViewState extends State<TerminalView>
     if (key == LogicalKeyboardKey.pageUp) return '\x1b[5~';
     if (key == LogicalKeyboardKey.pageDown) return '\x1b[6~';
     if (key == LogicalKeyboardKey.insert) return '\x1b[2~';
+
+    // FIX: Standard Shell Command History Navigation mappings.
+    // If your shell uses Application Mode, use '\x1bOA' and '\x1bOB'.
     if (key == LogicalKeyboardKey.arrowUp) return '\x1b[A';
     if (key == LogicalKeyboardKey.arrowDown) return '\x1b[B';
     if (key == LogicalKeyboardKey.arrowRight) return '\x1b[C';
     if (key == LogicalKeyboardKey.arrowLeft) return '\x1b[D';
 
+    // ── Function keys ─────────────────────────────────────────────────────────
     if (key == LogicalKeyboardKey.f1) return '\x1bOP';
     if (key == LogicalKeyboardKey.f2) return '\x1bOQ';
     if (key == LogicalKeyboardKey.f3) return '\x1bOR';
@@ -475,57 +490,83 @@ class _TerminalViewState extends State<TerminalView>
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => _focusNode.requestFocus(),
-      child: KeyboardListener(
-        focusNode: _focusNode,
-        autofocus: true,
-        onKeyEvent: (KeyEvent event) {
-          if (event is KeyDownEvent || event is KeyRepeatEvent) {
-            final key = event.logicalKey;
-            final isAlt = HardwareKeyboard.instance.isAltPressed;
-            final isCtrl = HardwareKeyboard.instance.isControlPressed;
-            final isShift = HardwareKeyboard.instance.isShiftPressed;
 
-            if (isAlt && !isCtrl && !isShift) {
-              final int? targetIndex = switch (key) {
-                LogicalKeyboardKey.digit1 => 0,
-                LogicalKeyboardKey.digit2 => 1,
-                LogicalKeyboardKey.digit3 => 2,
-                LogicalKeyboardKey.digit4 => 3,
-                LogicalKeyboardKey.digit5 => 4,
-                LogicalKeyboardKey.digit6 => 5,
-                LogicalKeyboardKey.digit7 => 6,
-                LogicalKeyboardKey.digit8 => 7,
-                LogicalKeyboardKey.digit9 => 8,
-                LogicalKeyboardKey.digit0 => 9,
-                _ => null,
-              };
+      // ── FEATURE 1a: Mobile touch gesture scrolling ──────────────────────────
+      onVerticalDragUpdate: (details) {
+        _dragDistance += details.primaryDelta ?? 0.0;
+        final int lines = (_dragDistance / _lineHeight).round();
+        if (lines != 0) {
+          // Swiping down moves the viewport UP (negative value)
+          // Assumes scrollTerminal(id, lines) is exposed by your Rust FFI wrapper
+          scrollTerminal(id: widget.terminalId, lines: -lines);
+          _dragDistance -= lines * _lineHeight;
+        }
+      },
+      onVerticalDragEnd: (_) => _dragDistance = 0.0,
 
-              if (targetIndex != null &&
-                  targetIndex < widget.tabController.length) {
-                widget.tabController.animateTo(targetIndex);
-                return;
-              }
-            }
-
-            final input = _keyEventToTerminalInput(event);
-            if (input != null) {
-              sendInput(id: widget.terminalId, input: input);
+      child: Listener(
+        // ── FEATURE 1b: Desktop mouse wheel scrolling ────────────────────────
+        onPointerSignal: (pointerSignal) {
+          if (pointerSignal is PointerScrollEvent) {
+            final int lines = (pointerSignal.scrollDelta.dy / _lineHeight)
+                .round();
+            if (lines != 0) {
+              scrollTerminal(id: widget.terminalId, lines: lines);
             }
           }
         },
-        child: Container(
-          color: Theme.of(context).scaffoldBackgroundColor,
-          child: CustomPaint(
-            painter: _frame != null
-                ? TerminalPainter(
-                    _frame!,
-                    widget.fontSize,
-                    Theme.of(context).textTheme.bodyMedium?.color ??
-                        Colors.white,
-                    widget.terminalId,
-                  )
-                : null,
-            child: Container(),
+        child: KeyboardListener(
+          focusNode: _focusNode,
+          autofocus: true,
+          onKeyEvent: (KeyEvent event) {
+            if (event is KeyDownEvent || event is KeyRepeatEvent) {
+              final key = event.logicalKey;
+              final isAlt = HardwareKeyboard.instance.isAltPressed;
+              final isCtrl = HardwareKeyboard.instance.isControlPressed;
+              final isShift = HardwareKeyboard.instance.isShiftPressed;
+
+              if (isAlt && !isCtrl && !isShift) {
+                final int? targetIndex = switch (key) {
+                  LogicalKeyboardKey.digit1 => 0,
+                  LogicalKeyboardKey.digit2 => 1,
+                  LogicalKeyboardKey.digit3 => 2,
+                  LogicalKeyboardKey.digit4 => 3,
+                  LogicalKeyboardKey.digit5 => 4,
+                  LogicalKeyboardKey.digit6 => 5,
+                  LogicalKeyboardKey.digit7 => 6,
+                  LogicalKeyboardKey.digit8 => 7,
+                  LogicalKeyboardKey.digit9 => 8,
+                  LogicalKeyboardKey.digit0 => 9,
+                  _ => null,
+                };
+
+                if (targetIndex != null &&
+                    targetIndex < widget.tabController.length) {
+                  widget.tabController.animateTo(targetIndex);
+                  return;
+                }
+              }
+
+              final input = _keyEventToTerminalInput(event);
+              if (input != null) {
+                sendInput(id: widget.terminalId, input: input);
+              }
+            }
+          },
+          child: Container(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            child: CustomPaint(
+              painter: _frame != null
+                  ? TerminalPainter(
+                      _frame!,
+                      widget.fontSize,
+                      Theme.of(context).textTheme.bodyMedium?.color ??
+                          Colors.white,
+                      widget.terminalId,
+                    )
+                  : null,
+              child: Container(),
+            ),
           ),
         ),
       ),

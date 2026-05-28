@@ -2,14 +2,15 @@ use alacritty_terminal::event::VoidListener;
 use alacritty_terminal::grid::{Dimensions, GridCell};
 use alacritty_terminal::index::{Column, Line};
 use alacritty_terminal::term::cell::Flags;
+use alacritty_terminal::grid::Scroll;
 use alacritty_terminal::term::{Config, Term};
-use vte::ansi;
 use parking_lot::RwLock;
 use portable_pty::{native_pty_system, CommandBuilder, MasterPty, PtySize};
 use std::io::{Read, Write};
 use std::sync::Arc;
 use std::thread;
 use std::time::Duration;
+use vte::ansi;
 
 use std::sync::atomic::{AtomicBool, Ordering};
 
@@ -48,9 +49,15 @@ struct SimpleDimensions {
 }
 
 impl Dimensions for SimpleDimensions {
-    fn columns(&self) -> usize { self.cols }
-    fn screen_lines(&self) -> usize { self.rows }
-    fn total_lines(&self) -> usize { self.rows }
+    fn columns(&self) -> usize {
+        self.cols
+    }
+    fn screen_lines(&self) -> usize {
+        self.rows
+    }
+    fn total_lines(&self) -> usize {
+        10000 // Enable 10,000 lines of scrollback history
+    }
 }
 
 #[derive(Default)]
@@ -61,7 +68,9 @@ struct NoopTimeout {
 impl ansi::Timeout for NoopTimeout {
     fn set_timeout(&mut self, _: Duration) {}
     fn clear_timeout(&mut self) {}
-    fn pending_timeout(&self) -> bool { false }
+    fn pending_timeout(&self) -> bool {
+        false
+    }
 }
 
 impl FlutterTerminal {
@@ -76,7 +85,10 @@ impl FlutterTerminal {
             })
             .unwrap();
 
-        let dims = SimpleDimensions { cols: cols as usize, rows: rows as usize };
+        let dims = SimpleDimensions {
+            cols: cols as usize,
+            rows: rows as usize,
+        };
         let term = Term::new(Config::default(), &dims, VoidListener);
         let term = Arc::new(RwLock::new(term));
         let dirty = Arc::new(AtomicBool::new(true));
@@ -129,19 +141,20 @@ impl FlutterTerminal {
 
         let term = self.term.read();
         let grid = term.grid();
-        
+        let display_offset = grid.display_offset(); // How many lines we are scrolled up
+
         let mut content = String::new();
         let rows = term.screen_lines();
         let cols = term.columns();
         let mut attributes = Vec::with_capacity(rows * cols);
 
-        for line in 0..rows {
+        for y in 0..rows {
+            // Map screen row 'y' to grid line accounting for scrollback
+            let line_idx = Line(y as i32 - display_offset as i32);
             for col in 0..cols {
-                let cell = &grid[Line(line as i32)][Column(col)];
+                let cell = &grid[line_idx][Column(col)];
                 content.push(cell.c);
-                
-                // For now, just a simple flag. 
-                // We could pack colors here if needed.
+
                 let mut attr = 0u32;
                 if cell.flags().contains(Flags::BOLD) {
                     attr |= 1;
@@ -150,13 +163,28 @@ impl FlutterTerminal {
             }
         }
 
+        // Adjust cursor_y to be relative to the scrolled viewport
+        // If the cursor is on the screen, its position is original_y + display_offset
+        let raw_cursor_y = term.grid().cursor.point.line.0 as i32;
+        let adjusted_cursor_y = raw_cursor_y + display_offset as i32;
+
         Some(TerminalFrame {
             rows: rows as u16,
             cols: cols as u16,
             content,
             attributes,
             cursor_x: term.grid().cursor.point.column.0 as u16,
-            cursor_y: term.grid().cursor.point.line.0 as u16,
+            // Hide cursor (move off-screen) if it's not in the current viewport
+            cursor_y: if (0..rows as i32).contains(&adjusted_cursor_y) {
+                adjusted_cursor_y as u16
+            } else {
+                65535
+            },
         })
+    }
+    pub fn scroll(&self, lines: i32) {
+        let mut term = self.term.write();
+        term.scroll_display(Scroll::Delta(lines));
+        self.dirty.store(true, Ordering::SeqCst);
     }
 }

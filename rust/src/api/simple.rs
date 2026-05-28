@@ -8,8 +8,8 @@ pub use crate::terminal::TerminalCell;
 
 use std::sync::OnceLock;
 
-use std::time::Duration;
 use std::thread;
+use std::time::Duration;
 
 static NEXT_ID: AtomicU32 = AtomicU32::new(1);
 
@@ -29,12 +29,12 @@ pub fn add_terminal(rows: u16, cols: u16) -> u32 {
     let terminal = FlutterTerminal::new(rows, cols);
     let mut lock = terminals().write();
     lock.insert(id, terminal);
-    
+
     let mut active_lock = active_id().write();
     if *active_lock == 0 {
         *active_lock = id;
     }
-    
+
     id
 }
 
@@ -42,7 +42,7 @@ pub fn add_terminal(rows: u16, cols: u16) -> u32 {
 pub fn remove_terminal(id: u32) {
     let mut lock = terminals().write();
     lock.remove(&id);
-    
+
     let mut active_lock = active_id().write();
     if *active_lock == id {
         if let Some(&new_id) = lock.keys().next() {
@@ -92,4 +92,12 @@ pub fn send_input(id: u32, input: String) {
 #[flutter_rust_bridge::frb(init)]
 pub fn init_app() {
     flutter_rust_bridge::setup_default_user_utils();
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn scroll_terminal(id: u32, lines: i32) {
+    let lock = terminals().read();
+    if let Some(t) = lock.get(&id) {
+        t.scroll(lines);
+    }
 }

@@ -26,3 +26,6 @@ TerminalFrame? getTerminalFrame({required int id}) =>
 
 void sendInput({required int id, required String input}) =>
     RustLib.instance.api.crateApiSimpleSendInput(id: id, input: input);
+
+void scrollTerminal({required int id, required int lines}) =>
+    RustLib.instance.api.crateApiSimpleScrollTerminal(id: id, lines: lines);
