@@ -1,5 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_alacritty/features/data/settings.dart';
+import 'package:mechanix_terminal/features/data/settings.dart';
 
 void main() {
   group('AppSettings', () {

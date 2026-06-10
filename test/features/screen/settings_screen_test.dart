@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_alacritty/features/screen/settings_screen.dart';
-import 'package:flutter_alacritty/features/data/settings.dart';
+import 'package:mechanix_terminal/features/screen/settings_screen.dart';
+import 'package:mechanix_terminal/features/data/settings.dart';
 
 void main() {
   group('TerminalSettingsPage Unit Tests', () {
-    testWidgets('Renders settings page correctly and applies settings',
-        (WidgetTester tester) async {
+    testWidgets('Renders settings page correctly and applies settings', (
+      WidgetTester tester,
+    ) async {
       final settings = AppSettings(
         id: 1,
         fontSize: 16.0,
@@ -19,15 +20,17 @@ void main() {
 
       AppSettings? updatedSettings;
 
-      await tester.pumpWidget(MaterialApp(
-        theme: ThemeData(useMaterial3: false),
-        home: TerminalSettingsPage(
-          settings: settings,
-          onSettingsChanged: (s) {
-            updatedSettings = s;
-          },
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: ThemeData(useMaterial3: false),
+          home: TerminalSettingsPage(
+            settings: settings,
+            onSettingsChanged: (s) {
+              updatedSettings = s;
+            },
+          ),
         ),
-      ));
+      );
 
       // Verify header and basic tiles are rendered
       expect(find.text('Settings'), findsOneWidget);

@@ -1,5 +1,4 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_alacritty/features/data/settings_repository.dart';
 
 void main() {
   group('SettingsRepository Tests', () {
@@ -11,7 +10,7 @@ void main() {
       // To properly unit test SettingsRepository, you would typically:
       // 1. Mock the Store object using mockito/mocktail and test the repository logic independently.
       // 2. Use objectbox's test package to run an in-memory store in integration tests.
-      // 
+      //
       // This test serves as a placeholder ensuring the file is covered in test suites.
       expect(true, isTrue);
     });

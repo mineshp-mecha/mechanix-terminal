@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_alacritty/main.dart';
-import 'package:flutter_alacritty/src/rust/frb_generated.dart';
+import 'package:mechanix_terminal/main.dart';
+import 'package:mechanix_terminal/src/rust/frb_generated.dart';
 import 'package:integration_test/integration_test.dart';
 
 void main() {

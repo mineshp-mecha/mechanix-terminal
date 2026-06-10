@@ -5,15 +5,15 @@ import 'dart:ui' as ui;
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_alacritty/core/utils/app_logger.dart';
-import 'package:flutter_alacritty/core/utils/app_theme.dart';
-import 'package:flutter_alacritty/core/utils/constants.dart';
-import 'package:flutter_alacritty/features/data/settings.dart';
-import 'package:flutter_alacritty/features/data/settings_repository.dart';
-import 'package:flutter_alacritty/features/screen/settings_screen.dart';
-import 'package:flutter_alacritty/src/rust/api/simple.dart';
-import 'package:flutter_alacritty/src/rust/frb_generated.dart';
-import 'package:flutter_alacritty/src/rust/terminal.dart';
+import 'package:mechanix_terminal/core/utils/app_logger.dart';
+import 'package:mechanix_terminal/core/utils/app_theme.dart';
+import 'package:mechanix_terminal/core/utils/constants.dart';
+import 'package:mechanix_terminal/features/data/settings.dart';
+import 'package:mechanix_terminal/features/data/settings_repository.dart';
+import 'package:mechanix_terminal/features/screen/settings_screen.dart';
+import 'package:mechanix_terminal/src/rust/api/simple.dart';
+import 'package:mechanix_terminal/src/rust/frb_generated.dart';
+import 'package:mechanix_terminal/src/rust/terminal.dart';
 import 'package:show_fps/show_fps.dart';
 
 Stream<int>? _terminalStream;
@@ -460,7 +460,7 @@ class _TerminalViewState extends State<TerminalView>
           buffer.write(frame.content[idx]);
         }
       }
-      
+
       if (y < b.row && !isWrapped) {
         buffer.write('\n');
       }
@@ -590,14 +590,15 @@ class _TerminalViewState extends State<TerminalView>
                 final isPaste =
                     (isCtrl && isShift && isKeyV) || (isMeta && isKeyV);
 
-                final isModifier = key == LogicalKeyboardKey.controlLeft ||
-                                   key == LogicalKeyboardKey.controlRight ||
-                                   key == LogicalKeyboardKey.shiftLeft ||
-                                   key == LogicalKeyboardKey.shiftRight ||
-                                   key == LogicalKeyboardKey.altLeft ||
-                                   key == LogicalKeyboardKey.altRight ||
-                                   key == LogicalKeyboardKey.metaLeft ||
-                                   key == LogicalKeyboardKey.metaRight;
+                final isModifier =
+                    key == LogicalKeyboardKey.controlLeft ||
+                    key == LogicalKeyboardKey.controlRight ||
+                    key == LogicalKeyboardKey.shiftLeft ||
+                    key == LogicalKeyboardKey.shiftRight ||
+                    key == LogicalKeyboardKey.altLeft ||
+                    key == LogicalKeyboardKey.altRight ||
+                    key == LogicalKeyboardKey.metaLeft ||
+                    key == LogicalKeyboardKey.metaRight;
 
                 // Clear selection on any key except modifiers and Copy/Paste shortcuts
                 if (!isCopy && !isPaste && !isModifier) {

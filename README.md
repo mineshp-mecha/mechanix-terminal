@@ -1,4 +1,4 @@
-# flutter_alacritty
+# mechanix_terminal
 
 A high-performance Flutter-based terminal emulator powered by Alacritty's terminal core.
 
@@ -105,13 +105,13 @@ In embedded environments (like flutter-elinux), system fonts might be restricted
 ## RUN ON ARM64
 
 ```bash
-LD_LIBRARY_PATH=./lib ./flutter_alacritty -b . -s 1 -w 540 -h 620
+LD_LIBRARY_PATH=./lib ./mechanix_terminal -b . -s 1 -w 540 -h 620
 ```
 
 ## cross compile the
 
 you need to manually cross-compile the Rust library for ARM64 and ensure it is placed in the lib/ directory of your deployment bundle.
-cd flutter_alacritty/rust
+cd mechanix_terminal/rust
 
 ## Use CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER to point to your cross-compiler
 

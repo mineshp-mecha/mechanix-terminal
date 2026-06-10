@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.15)
 set(CMAKE_FIND_ROOT_PATH_MODE_PROGRAM NEVER)
 project(runner LANGUAGES CXX)
 
-set(BINARY_NAME "flutter_alacritty")
+set(BINARY_NAME "mechanix_terminal")
 
 cmake_policy(SET CMP0063 NEW)
 
@@ -103,7 +103,7 @@ if(NOT CMAKE_BUILD_TYPE MATCHES "Debug")
 endif()
 
 # Install the Rust library for eLinux
-set(RUST_LIB_NAME "librust_lib_flutter_alacritty.so")
+set(RUST_LIB_NAME "librust_lib_mechanix_terminal.so")
 
 # Check if we are cross-compiling for ARM64
 if(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64" OR CMAKE_LIBRARY_ARCHITECTURE STREQUAL "aarch64-linux-gnu")

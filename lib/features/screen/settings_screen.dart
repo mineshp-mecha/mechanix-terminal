@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_alacritty/core/utils/constants.dart';
-import 'package:flutter_alacritty/features/data/settings.dart';
-import 'package:flutter_alacritty/features/widgets/color_tile.dart';
-import 'package:flutter_alacritty/features/widgets/settings_tile.dart';
+import 'package:mechanix_terminal/core/utils/constants.dart';
+import 'package:mechanix_terminal/features/data/settings.dart';
+import 'package:mechanix_terminal/features/widgets/color_tile.dart';
+import 'package:mechanix_terminal/features/widgets/settings_tile.dart';
 
 class TerminalSettingsPage extends StatefulWidget {
   final AppSettings settings;
