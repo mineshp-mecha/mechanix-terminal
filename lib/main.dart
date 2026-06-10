@@ -479,12 +479,12 @@ class _TerminalViewState extends State<TerminalView>
 
     // Compute char metrics once here so pointer handlers and painter agree.
     final measureStyle = ui.TextStyle(
-      fontFamily: 'monospace',
+      fontFamily: fontFamily,
       fontSize: fontSize,
     );
     final measureParaStyle = ui.ParagraphStyle(
       fontSize: fontSize,
-      fontFamily: 'monospace',
+      fontFamily: fontFamily,
     );
     final measurePb = ui.ParagraphBuilder(measureParaStyle)
       ..pushStyle(measureStyle)
