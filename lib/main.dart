@@ -1,15 +1,26 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui' as ui;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_alacritty/core/utils/app_logger.dart';
+import 'package:flutter_alacritty/core/utils/app_theme.dart';
+import 'package:flutter_alacritty/core/utils/constants.dart';
+import 'package:flutter_alacritty/features/data/settings.dart';
+import 'package:flutter_alacritty/features/data/settings_repository.dart';
+import 'package:flutter_alacritty/features/screen/settings_screen.dart';
 import 'package:flutter_alacritty/src/rust/api/simple.dart';
-import 'package:flutter_alacritty/src/rust/terminal.dart';
 import 'package:flutter_alacritty/src/rust/frb_generated.dart';
+import 'package:flutter_alacritty/src/rust/terminal.dart';
+import 'package:show_fps/show_fps.dart';
 
 Stream<int>? _terminalStream;
+late SettingsRepository settingsRepository;
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   await RustLib.init();
   _terminalStream = createTerminalStream().asBroadcastStream();
   runApp(const MyApp());
@@ -23,49 +34,70 @@ class MyApp extends StatefulWidget {
 }
 
 class _MyAppState extends State<MyApp> {
-  double _fontSize = 14.0;
-  ThemeMode _themeMode = ThemeMode.dark;
+  AppSettings _settings = AppSettings();
 
-  void _updateFontSize(double newSize) {
-    setState(() {
-      _fontSize = newSize;
-    });
+  @override
+  void initState() {
+    super.initState();
+    _initializeSettings();
   }
 
-  void _updateThemeMode(ThemeMode newMode) {
+  Future<void> _initializeSettings() async {
+    try {
+      settingsRepository = await SettingsRepository.create();
+
+      if (!mounted) return;
+
+      setState(() {
+        _settings = settingsRepository.getSettings();
+      });
+    } catch (e) {
+      AppLogger.i('Failed to initialize settings: $e');
+    }
+  }
+
+  void _updateSettings(AppSettings newSettings) {
     setState(() {
-      _themeMode = newMode;
+      _settings = newSettings;
     });
+    settingsRepository.saveSettings(newSettings);
   }
 
   @override
   Widget build(BuildContext context) {
+    final showFps = Platform.environment['SHOW_FPS'] == 'true';
+
+    ThemeMode themeMode = ThemeMode.dark;
+    if (_settings.colorBackground?.toUpperCase() == '#EFF1F5') {
+      themeMode = ThemeMode.light;
+    }
+
     return MaterialApp(
-      theme: ThemeData.light(),
-      darkTheme: ThemeData.dark(),
-      themeMode: _themeMode,
+      theme: AppTheme.light,
+      darkTheme: AppTheme.dark,
+      themeMode: themeMode,
+      debugShowCheckedModeBanner: false,
       home: TerminalTabs(
-        fontSize: _fontSize,
-        themeMode: _themeMode,
-        onFontSizeChanged: _updateFontSize,
-        onThemeModeChanged: _updateThemeMode,
+        settings: _settings,
+        onSettingsChanged: _updateSettings,
       ),
+      builder: showFps
+          ? (context, child) {
+              return ShowFPS(visible: showFps, showChart: false, child: child!);
+            }
+          : null,
     );
   }
 }
 
 class TerminalTabs extends StatefulWidget {
-  final double fontSize;
-  final ThemeMode themeMode;
-  final ValueChanged<double> onFontSizeChanged;
-  final ValueChanged<ThemeMode> onThemeModeChanged;
+  final AppSettings settings;
+  final ValueChanged<AppSettings> onSettingsChanged;
 
   const TerminalTabs({
     super.key,
-    required this.fontSize,
-    required this.themeMode,
-    required this.onFontSizeChanged,
-    required this.onThemeModeChanged,
+    required this.settings,
+    required this.onSettingsChanged,
   });
 
   @override
@@ -190,70 +222,14 @@ class _TerminalTabsState extends State<TerminalTabs>
                 constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                 icon: const Icon(Icons.settings),
                 onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => StatefulBuilder(
-                      builder: (context, setDialogState) {
-                        return AlertDialog(
-                          title: const Text("Settings"),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text("Font Size"),
-                              Slider(
-                                value: widget.fontSize,
-                                min: 8,
-                                max: 30,
-                                divisions: 22,
-                                label: widget.fontSize.round().toString(),
-                                onChanged: (val) {
-                                  widget.onFontSizeChanged(val);
-                                  setDialogState(() {});
-                                },
-                              ),
-                              const SizedBox(height: 16),
-                              ListTile(
-                                title: const Text("Theme"),
-                                trailing: DropdownButton<ThemeMode>(
-                                  value: widget.themeMode,
-                                  onChanged: (ThemeMode? newMode) {
-                                    if (newMode != null) {
-                                      widget.onThemeModeChanged(newMode);
-                                      setDialogState(() {});
-                                    }
-                                  },
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: ThemeMode.light,
-                                      child: Text("Light"),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: ThemeMode.dark,
-                                      child: Text("Dark"),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: ThemeMode.system,
-                                      child: Text("System"),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          actions: [
-                            TextButton(
-                              style: TextButton.styleFrom(
-                                minimumSize: const Size(
-                                  64,
-                                  44,
-                                ), // Ensure ≥ 44dp target
-                              ),
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text("Close"),
-                            ),
-                          ],
-                        );
-                      },
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      fullscreenDialog: true,
+                      builder: (_) => TerminalSettingsPage(
+                        settings: widget.settings,
+                        onSettingsChanged: widget.onSettingsChanged,
+                      ),
                     ),
                   );
                 },
@@ -269,7 +245,7 @@ class _TerminalTabsState extends State<TerminalTabs>
         children: _terminalIds.asMap().entries.map((entry) {
           return TerminalView(
             terminalId: entry.value,
-            fontSize: widget.fontSize,
+            settings: widget.settings,
             tabController: _tabController!,
             index: entry.key,
           );
@@ -281,13 +257,13 @@ class _TerminalTabsState extends State<TerminalTabs>
 
 class TerminalView extends StatefulWidget {
   final int terminalId;
-  final double fontSize;
+  final AppSettings settings;
   final TabController tabController;
   final int index;
   const TerminalView({
     super.key,
     required this.terminalId,
-    required this.fontSize,
+    required this.settings,
     required this.tabController,
     required this.index,
   });
@@ -302,10 +278,14 @@ class _TerminalViewState extends State<TerminalView>
   StreamSubscription? _subscription;
   final FocusNode _focusNode = FocusNode();
 
-  // ── SCROLL STATE TRACKING ──────────────────────────────────────────────────
-  double _dragDistance = 0.0;
   // Estimate height per line dynamically based on font size
-  double get _lineHeight => widget.fontSize * 1.3;
+  double get _lineHeight => widget.settings.fontSize * 1.3;
+
+  // ── TEXT SELECTION STATE ───────────────────────────────────────────────────
+  // Cell coordinates (col, row) for selection anchor and active end.
+  ({int col, int row})? _selectionStart;
+  ({int col, int row})? _selectionEnd;
+  bool _isSelecting = false;
 
   @override
   bool get wantKeepAlive => true;
@@ -380,196 +360,334 @@ class _TerminalViewState extends State<TerminalView>
 
     // ── Ctrl shortcuts ────────────────────────────────────────────────────────
     if (isCtrl && !isAlt) {
-      if (key == LogicalKeyboardKey.keyC) return '\x03';
-      if (key == LogicalKeyboardKey.keyD) return '\x04';
-      if (key == LogicalKeyboardKey.keyZ) return '\x1a';
-      if (key == LogicalKeyboardKey.keyL) return '\x0c';
-      if (key == LogicalKeyboardKey.keyA) return '\x01';
-      if (key == LogicalKeyboardKey.keyE) return '\x05';
-      if (key == LogicalKeyboardKey.keyK) return '\x0b';
-      if (key == LogicalKeyboardKey.keyU) return '\x15';
-      if (key == LogicalKeyboardKey.keyW) return '\x17';
-      if (key == LogicalKeyboardKey.keyR) return '\x12';
-      if (key == LogicalKeyboardKey.keyS) return '\x13';
-      if (key == LogicalKeyboardKey.keyQ) return '\x11';
-      if (key == LogicalKeyboardKey.keyP) return '\x10';
-      if (key == LogicalKeyboardKey.keyN) return '\x0e';
-      if (key == LogicalKeyboardKey.keyB) return '\x02';
-      if (key == LogicalKeyboardKey.keyF) return '\x06';
-      if (key == LogicalKeyboardKey.keyT) return '\x14';
-      if (key == LogicalKeyboardKey.keyY) return '\x19';
-      if (key == LogicalKeyboardKey.backslash) return '\x1c';
-      if (key == LogicalKeyboardKey.bracketRight) return '\x1d';
-      if (key == LogicalKeyboardKey.space) return '\x00';
-
-      if (key == LogicalKeyboardKey.arrowLeft) return '\x1b[1;5D';
-      if (key == LogicalKeyboardKey.arrowRight) return '\x1b[1;5C';
-      if (key == LogicalKeyboardKey.arrowUp) return '\x1b[1;5A';
-      if (key == LogicalKeyboardKey.arrowDown) return '\x1b[1;5B';
-
-      if (key == LogicalKeyboardKey.home) return '\x1b[1;5H';
-      if (key == LogicalKeyboardKey.end) return '\x1b[1;5F';
-      if (key == LogicalKeyboardKey.delete) return '\x1b[3;5~';
+      final value = ctrlMappings[key];
+      if (value != null) return value;
     }
 
     // ── Alt (Meta) shortcuts ──────────────────────────────────────────────────
     if (isAlt && !isCtrl) {
-      if (key == LogicalKeyboardKey.keyB) return '\x1bb';
-      if (key == LogicalKeyboardKey.keyF) return '\x1bf';
-      if (key == LogicalKeyboardKey.keyD) return '\x1bd';
-      if (key == LogicalKeyboardKey.backspace) return '\x1b\x7f';
-      if (key == LogicalKeyboardKey.keyU) return '\x1bu';
-      if (key == LogicalKeyboardKey.keyL) return '\x1bl';
-      if (key == LogicalKeyboardKey.keyC) return '\x1bc';
-      if (key == LogicalKeyboardKey.keyR) return '\x1br';
-      if (key == LogicalKeyboardKey.period) return '\x1b.';
-
-      if (key == LogicalKeyboardKey.digit0) return '\x1b0';
-      for (int i = 1; i <= 9; i++) {
-        if (key.keyId == LogicalKeyboardKey.digit1.keyId + i - 1) {
-          return '\x1b$i';
-        }
+      if (key == LogicalKeyboardKey.digit0) {
+        return '\x1b0';
       }
-      if (key == LogicalKeyboardKey.arrowLeft) return '\x1b[1;3D';
-      if (key == LogicalKeyboardKey.arrowRight) return '\x1b[1;3C';
+
+      final digit1 = LogicalKeyboardKey.digit1.keyId;
+      final digit9 = LogicalKeyboardKey.digit9.keyId;
+
+      if (key.keyId >= digit1 && key.keyId <= digit9) {
+        return '\x1b${key.keyId - digit1 + 1}';
+      }
+
+      final value = altMappings[key];
+      if (value != null) return value;
     }
 
     // ── Shift shortcuts ───────────────────────────────────────────────────────
     if (isShift) {
-      if (key == LogicalKeyboardKey.arrowUp) return '\x1b[1;2A';
-      if (key == LogicalKeyboardKey.arrowDown) return '\x1b[1;2B';
-      if (key == LogicalKeyboardKey.pageUp) return '\x1b[5;2~';
-      if (key == LogicalKeyboardKey.pageDown) return '\x1b[6;2~';
-      if (key == LogicalKeyboardKey.tab) return '\x1b[Z';
+      final shiftValue = shiftMappings[key];
+      if (shiftValue != null) {
+        return shiftValue;
+      }
     }
 
-    // ── Special / Navigation & Command History keys ───────────────────────────
-    if (key == LogicalKeyboardKey.enter) return '\r';
-    if (key == LogicalKeyboardKey.backspace) return '\x7f';
-    if (key == LogicalKeyboardKey.tab) return '\t';
-    if (key == LogicalKeyboardKey.escape) return '\x1b';
-    if (key == LogicalKeyboardKey.delete) return '\x1b[3~';
-    if (key == LogicalKeyboardKey.home) return '\x1b[H';
-    if (key == LogicalKeyboardKey.end) return '\x1b[F';
-    if (key == LogicalKeyboardKey.pageUp) return '\x1b[5~';
-    if (key == LogicalKeyboardKey.pageDown) return '\x1b[6~';
-    if (key == LogicalKeyboardKey.insert) return '\x1b[2~';
+    final defaultValue = defaultMappings[key];
+    if (defaultValue != null) {
+      return defaultValue;
+    }
 
-    // FIX: Standard Shell Command History Navigation mappings.
-    // If your shell uses Application Mode, use '\x1bOA' and '\x1bOB'.
-    if (key == LogicalKeyboardKey.arrowUp) return '\x1b[A';
-    if (key == LogicalKeyboardKey.arrowDown) return '\x1b[B';
-    if (key == LogicalKeyboardKey.arrowRight) return '\x1b[C';
-    if (key == LogicalKeyboardKey.arrowLeft) return '\x1b[D';
-
-    // ── Function keys ─────────────────────────────────────────────────────────
-    if (key == LogicalKeyboardKey.f1) return '\x1bOP';
-    if (key == LogicalKeyboardKey.f2) return '\x1bOQ';
-    if (key == LogicalKeyboardKey.f3) return '\x1bOR';
-    if (key == LogicalKeyboardKey.f4) return '\x1bOS';
-    if (key == LogicalKeyboardKey.f5) return '\x1b[15~';
-    if (key == LogicalKeyboardKey.f6) return '\x1b[17~';
-    if (key == LogicalKeyboardKey.f7) return '\x1b[18~';
-    if (key == LogicalKeyboardKey.f8) return '\x1b[19~';
-    if (key == LogicalKeyboardKey.f9) return '\x1b[20~';
-    if (key == LogicalKeyboardKey.f10) return '\x1b[21~';
-    if (key == LogicalKeyboardKey.f11) return '\x1b[23~';
-    if (key == LogicalKeyboardKey.f12) return '\x1b[24~';
-
-    final character = event is KeyDownEvent || event is KeyRepeatEvent
-        ? event.character
-        : null;
-    if (character != null && character.isNotEmpty) return character;
+    if (event is KeyDownEvent || event is KeyRepeatEvent) {
+      final character = event.character;
+      if (character != null && character.isNotEmpty) {
+        return character;
+      }
+    }
 
     return null;
+  } // ── SELECTION HELPERS ──────────────────────────────────────────────────────
+
+  /// Convert a pixel offset to a terminal cell coordinate.
+  ({int col, int row}) _pixelToCell(
+    Offset position,
+    double charWidth,
+    double charHeight,
+  ) {
+    final frame = _frame;
+    int col = (position.dx / charWidth).floor();
+    int row = (position.dy / charHeight).floor();
+    if (frame != null) {
+      col = col.clamp(0, frame.cols - 1);
+      row = row.clamp(0, frame.rows - 1);
+    } else {
+      col = col.clamp(0, 9999);
+      row = row.clamp(0, 9999);
+    }
+    return (col: col, row: row);
+  }
+
+  /// Extract the plain-text content of the current selection from [frame].
+  String _extractSelection(TerminalFrame frame) {
+    final start = _selectionStart;
+    final end = _selectionEnd;
+    if (start == null || end == null) return '';
+
+    // Normalise so startCell always comes before endCell in reading order.
+    final ({int col, int row}) a;
+    final ({int col, int row}) b;
+    if (start.row < end.row || (start.row == end.row && start.col <= end.col)) {
+      a = start;
+      b = end;
+    } else {
+      a = end;
+      b = start;
+    }
+
+    final buffer = StringBuffer();
+    for (int y = a.row; y <= b.row; y++) {
+      final startCol = (y == a.row) ? a.col : 0;
+      final endCol = (y == b.row) ? b.col : frame.cols - 1;
+      final rowStart = y * frame.cols;
+
+      bool isWrapped = false;
+      if (y < b.row) {
+        final lastColIdx = rowStart + (frame.cols - 1);
+        if (lastColIdx < frame.attributes.length) {
+          isWrapped = (frame.attributes[lastColIdx] & 2) != 0;
+        }
+      }
+
+      for (int x = startCol; x <= endCol; x++) {
+        final idx = rowStart + x;
+        if (idx < frame.content.length) {
+          buffer.write(frame.content[idx]);
+        }
+      }
+      
+      if (y < b.row && !isWrapped) {
+        buffer.write('\n');
+      }
+    }
+
+    // Trim trailing spaces on each line, like a real terminal.
+    return buffer.toString().split('\n').map((l) => l.trimRight()).join('\n');
   }
 
   @override
   Widget build(BuildContext context) {
     super.build(context);
-    return GestureDetector(
-      behavior: HitTestBehavior.opaque,
-      onTap: () => _focusNode.requestFocus(),
 
-      // ── FEATURE 1a: Mobile touch gesture scrolling ──────────────────────────
-      onVerticalDragUpdate: (details) {
-        _dragDistance += details.primaryDelta ?? 0.0;
-        final int lines = (_dragDistance / _lineHeight).round();
-        if (lines != 0) {
-          // Swiping down moves the viewport UP (negative value)
-          // Assumes scrollTerminal(id, lines) is exposed by your Rust FFI wrapper
-          scrollTerminal(id: widget.terminalId, lines: -lines);
-          _dragDistance -= lines * _lineHeight;
-        }
-      },
-      onVerticalDragEnd: (_) => _dragDistance = 0.0,
+    final fontSize = widget.settings.fontSize;
+    final fontFamily = widget.settings.fontFamily ?? 'monospace';
 
-      child: Listener(
-        // ── FEATURE 1b: Desktop mouse wheel scrolling ────────────────────────
-        onPointerSignal: (pointerSignal) {
-          if (pointerSignal is PointerScrollEvent) {
-            final int lines = (pointerSignal.scrollDelta.dy / _lineHeight)
-                .round();
-            if (lines != 0) {
-              scrollTerminal(id: widget.terminalId, lines: lines);
+    // Compute char metrics once here so pointer handlers and painter agree.
+    final measureStyle = ui.TextStyle(
+      fontFamily: 'monospace',
+      fontSize: fontSize,
+    );
+    final measureParaStyle = ui.ParagraphStyle(
+      fontSize: fontSize,
+      fontFamily: 'monospace',
+    );
+    final measurePb = ui.ParagraphBuilder(measureParaStyle)
+      ..pushStyle(measureStyle)
+      ..addText('X');
+    final charMeasure = measurePb.build()
+      ..layout(const ui.ParagraphConstraints(width: double.infinity));
+    final double charWidth = charMeasure.maxIntrinsicWidth;
+    final double charHeight = charMeasure.height;
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final cols = (constraints.maxWidth / charWidth).floor().clamp(10, 500);
+        final rows = (constraints.maxHeight / charHeight).floor().clamp(5, 200);
+
+        final currentFrame = _frame;
+        if (currentFrame == null ||
+            currentFrame.rows != rows ||
+            currentFrame.cols != cols) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              resizeTerminal(id: widget.terminalId, rows: rows, cols: cols);
             }
-          }
-        },
-        child: KeyboardListener(
-          focusNode: _focusNode,
-          autofocus: true,
-          onKeyEvent: (KeyEvent event) {
-            if (event is KeyDownEvent || event is KeyRepeatEvent) {
-              final key = event.logicalKey;
-              final isAlt = HardwareKeyboard.instance.isAltPressed;
-              final isCtrl = HardwareKeyboard.instance.isControlPressed;
-              final isShift = HardwareKeyboard.instance.isShiftPressed;
+          });
+        }
 
-              if (isAlt && !isCtrl && !isShift) {
-                final int? targetIndex = switch (key) {
-                  LogicalKeyboardKey.digit1 => 0,
-                  LogicalKeyboardKey.digit2 => 1,
-                  LogicalKeyboardKey.digit3 => 2,
-                  LogicalKeyboardKey.digit4 => 3,
-                  LogicalKeyboardKey.digit5 => 4,
-                  LogicalKeyboardKey.digit6 => 5,
-                  LogicalKeyboardKey.digit7 => 6,
-                  LogicalKeyboardKey.digit8 => 7,
-                  LogicalKeyboardKey.digit9 => 8,
-                  LogicalKeyboardKey.digit0 => 9,
-                  _ => null,
-                };
-
-                if (targetIndex != null &&
-                    targetIndex < widget.tabController.length) {
-                  widget.tabController.animateTo(targetIndex);
-                  return;
-                }
-              }
-
-              final input = _keyEventToTerminalInput(event);
-              if (input != null) {
-                sendInput(id: widget.terminalId, input: input);
+        return Listener(
+          // ── Mouse-wheel scrolling ──────────────────────────────────────────────
+          onPointerSignal: (pointerSignal) {
+            if (pointerSignal is PointerScrollEvent) {
+              final int lines = (pointerSignal.scrollDelta.dy / _lineHeight)
+                  .round();
+              if (lines != 0) {
+                scrollTerminal(id: widget.terminalId, lines: lines);
               }
             }
           },
-          child: Container(
-            color: Theme.of(context).scaffoldBackgroundColor,
-            child: CustomPaint(
-              painter: _frame != null
-                  ? TerminalPainter(
-                      _frame!,
-                      widget.fontSize,
-                      Theme.of(context).textTheme.bodyMedium?.color ??
-                          Colors.white,
-                      widget.terminalId,
-                    )
-                  : null,
-              child: Container(),
+          // ── Left-button down: start selection ─────────────────────────────────
+          onPointerDown: (event) {
+            if (event.buttons == kPrimaryMouseButton) {
+              _focusNode.requestFocus();
+              final cell = _pixelToCell(
+                event.localPosition,
+                charWidth,
+                charHeight,
+              );
+              setState(() {
+                _isSelecting = true;
+                _selectionStart = cell;
+                _selectionEnd = cell;
+              });
+            }
+          },
+          // ── Left-button drag: extend selection ────────────────────────────────
+          onPointerMove: (event) {
+            if (_isSelecting && event.buttons == kPrimaryMouseButton) {
+              final cell = _pixelToCell(
+                event.localPosition,
+                charWidth,
+                charHeight,
+              );
+              setState(() {
+                _selectionEnd = cell;
+              });
+            }
+          },
+          // ── Left-button up: finish & copy ─────────────────────────────────────
+          onPointerUp: (event) {
+            if (_isSelecting) {
+              setState(() {
+                _isSelecting = false;
+              });
+              final frame = _frame;
+              if (frame != null) {
+                final text = _extractSelection(frame);
+                if (text.trim().isNotEmpty) {
+                  Clipboard.setData(ClipboardData(text: text));
+                }
+              }
+            }
+          },
+          child: KeyboardListener(
+            focusNode: _focusNode,
+            autofocus: true,
+            onKeyEvent: (KeyEvent event) {
+              if (event is KeyDownEvent || event is KeyRepeatEvent) {
+                final key = event.logicalKey;
+                final isAlt = HardwareKeyboard.instance.isAltPressed;
+                final isCtrl = HardwareKeyboard.instance.isControlPressed;
+                final isShift = HardwareKeyboard.instance.isShiftPressed;
+                final isMeta = HardwareKeyboard.instance.isMetaPressed;
+
+                final isKeyC =
+                    key == LogicalKeyboardKey.keyC ||
+                    event.physicalKey == PhysicalKeyboardKey.keyC ||
+                    key.keyLabel.toLowerCase() == 'c';
+                final isKeyV =
+                    key == LogicalKeyboardKey.keyV ||
+                    event.physicalKey == PhysicalKeyboardKey.keyV ||
+                    key.keyLabel.toLowerCase() == 'v';
+
+                final isCopy =
+                    (isCtrl && isShift && isKeyC) || (isMeta && isKeyC);
+                final isPaste =
+                    (isCtrl && isShift && isKeyV) || (isMeta && isKeyV);
+
+                final isModifier = key == LogicalKeyboardKey.controlLeft ||
+                                   key == LogicalKeyboardKey.controlRight ||
+                                   key == LogicalKeyboardKey.shiftLeft ||
+                                   key == LogicalKeyboardKey.shiftRight ||
+                                   key == LogicalKeyboardKey.altLeft ||
+                                   key == LogicalKeyboardKey.altRight ||
+                                   key == LogicalKeyboardKey.metaLeft ||
+                                   key == LogicalKeyboardKey.metaRight;
+
+                // Clear selection on any key except modifiers and Copy/Paste shortcuts
+                if (!isCopy && !isPaste && !isModifier) {
+                  if (_selectionStart != null) {
+                    setState(() {
+                      _selectionStart = null;
+                      _selectionEnd = null;
+                    });
+                  }
+                }
+
+                // Copy selection to clipboard
+                if (isCopy) {
+                  final frame = _frame;
+                  if (frame != null) {
+                    final text = _extractSelection(frame);
+                    if (text.trim().isNotEmpty) {
+                      Clipboard.setData(ClipboardData(text: text));
+                    }
+                  }
+                  return;
+                }
+
+                // Paste clipboard into terminal
+                if (isPaste) {
+                  Clipboard.getData(Clipboard.kTextPlain).then((data) {
+                    final text = data?.text;
+                    if (text != null && text.isNotEmpty) {
+                      pasteTerminal(id: widget.terminalId, input: text);
+                    }
+                  });
+                  return;
+                }
+
+                if (isAlt && !isCtrl && !isShift) {
+                  final int? targetIndex = switch (key) {
+                    LogicalKeyboardKey.digit1 => 0,
+                    LogicalKeyboardKey.digit2 => 1,
+                    LogicalKeyboardKey.digit3 => 2,
+                    LogicalKeyboardKey.digit4 => 3,
+                    LogicalKeyboardKey.digit5 => 4,
+                    LogicalKeyboardKey.digit6 => 5,
+                    LogicalKeyboardKey.digit7 => 6,
+                    LogicalKeyboardKey.digit8 => 7,
+                    LogicalKeyboardKey.digit9 => 8,
+                    LogicalKeyboardKey.digit0 => 9,
+                    _ => null,
+                  };
+
+                  if (targetIndex != null &&
+                      targetIndex < widget.tabController.length) {
+                    widget.tabController.animateTo(targetIndex);
+                    return;
+                  }
+                }
+
+                final input = _keyEventToTerminalInput(event);
+                if (input != null) {
+                  sendInput(id: widget.terminalId, input: input);
+                }
+              }
+            },
+            child: Container(
+              color:
+                  _parseHexColor(widget.settings.colorBackground) ??
+                  Theme.of(context).scaffoldBackgroundColor,
+              child: CustomPaint(
+                painter: _frame != null
+                    ? TerminalPainter(
+                        _frame!,
+                        fontSize,
+                        _parseHexColor(widget.settings.colorForeground) ??
+                            Theme.of(context).textTheme.bodyMedium?.color ??
+                            Colors.white,
+                        _parseHexColor(widget.settings.colorBackground) ??
+                            Theme.of(context).scaffoldBackgroundColor,
+                        _parseHexColor(widget.settings.colorCursor) ??
+                            Colors.white70,
+                        fontFamily,
+                        widget.terminalId,
+                        selectionStart: _selectionStart,
+                        selectionEnd: _selectionEnd,
+                      )
+                    : null,
+                child: Container(),
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }
@@ -578,24 +696,39 @@ class TerminalPainter extends CustomPainter {
   final TerminalFrame frame;
   final double fontSize;
   final Color textColor;
+  final Color backgroundColor;
+  final Color cursorColor;
+  final String fontFamily;
   final int terminalId;
+  final ({int col, int row})? selectionStart;
+  final ({int col, int row})? selectionEnd;
 
   static final Map<String, ui.Paragraph> _rowCache = {};
 
-  TerminalPainter(this.frame, this.fontSize, this.textColor, this.terminalId);
+  TerminalPainter(
+    this.frame,
+    this.fontSize,
+    this.textColor,
+    this.backgroundColor,
+    this.cursorColor,
+    this.fontFamily,
+    this.terminalId, {
+    this.selectionStart,
+    this.selectionEnd,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final textStyle = ui.TextStyle(
       color: textColor,
-      fontFamily: 'monospace',
+      fontFamily: fontFamily,
       fontSize: fontSize,
     );
 
     final paragraphStyle = ui.ParagraphStyle(
       textAlign: TextAlign.left,
       fontSize: fontSize,
-      fontFamily: 'monospace',
+      fontFamily: fontFamily,
     );
     final pb = ui.ParagraphBuilder(paragraphStyle)
       ..pushStyle(textStyle)
@@ -615,7 +748,8 @@ class TerminalPainter extends CustomPainter {
           : endIndex;
       final rowContent = frame.content.substring(startIndex, actualEnd);
 
-      final cacheKey = "${terminalId}_${y}_${rowContent}_${fontSize}";
+      final cacheKey =
+          "${terminalId}_${y}_${rowContent}_${fontSize}_${textColor.toARGB32()}_$fontFamily";
 
       ui.Paragraph? paragraph = _rowCache[cacheKey];
       if (paragraph == null) {
@@ -632,7 +766,41 @@ class TerminalPainter extends CustomPainter {
       canvas.drawParagraph(paragraph, Offset(0, y * charHeight));
     }
 
-    final cursorPaint = Paint()..color = textColor.withOpacity(0.5);
+    // ── Draw selection highlight ───────────────────────────────────────────
+    final ss = selectionStart;
+    final se = selectionEnd;
+    if (ss != null && se != null) {
+      // Normalise order.
+      final ({int col, int row}) a;
+      final ({int col, int row}) b;
+      if (ss.row < se.row || (ss.row == se.row && ss.col <= se.col)) {
+        a = ss;
+        b = se;
+      } else {
+        a = se;
+        b = ss;
+      }
+
+      final selPaint = Paint()
+        ..color = const Color(0x557CB9F5); // semi-transparent blue
+
+      for (int y = a.row; y <= b.row; y++) {
+        final startCol = (y == a.row) ? a.col : 0;
+        final endCol = (y == b.row) ? b.col : frame.cols - 1;
+        canvas.drawRect(
+          Rect.fromLTWH(
+            startCol * charWidth,
+            y * charHeight,
+            (endCol - startCol + 1) * charWidth,
+            charHeight,
+          ),
+          selPaint,
+        );
+      }
+    }
+
+    // ── Draw cursor ───────────────────────────────────────────────────────────
+    final cursorPaint = Paint()..color = cursorColor;
     canvas.drawRect(
       Rect.fromLTWH(
         frame.cursorX * charWidth,
@@ -652,6 +820,21 @@ class TerminalPainter extends CustomPainter {
   bool shouldRepaint(covariant TerminalPainter oldDelegate) {
     return oldDelegate.frame != frame ||
         oldDelegate.fontSize != fontSize ||
-        oldDelegate.textColor != textColor;
+        oldDelegate.textColor != textColor ||
+        oldDelegate.backgroundColor != backgroundColor ||
+        oldDelegate.cursorColor != cursorColor ||
+        oldDelegate.fontFamily != fontFamily ||
+        oldDelegate.selectionStart != selectionStart ||
+        oldDelegate.selectionEnd != selectionEnd;
   }
+}
+
+Color? _parseHexColor(String? hexString) {
+  if (hexString == null) return null;
+  final buffer = StringBuffer();
+  if (hexString.length == 6 || hexString.length == 7) buffer.write('ff');
+  buffer.write(hexString.replaceFirst('#', ''));
+  final parsed = int.tryParse(buffer.toString(), radix: 16);
+  if (parsed == null) return null;
+  return Color(parsed);
 }

@@ -27,5 +27,15 @@ TerminalFrame? getTerminalFrame({required int id}) =>
 void sendInput({required int id, required String input}) =>
     RustLib.instance.api.crateApiSimpleSendInput(id: id, input: input);
 
+void pasteTerminal({required int id, required String input}) =>
+    RustLib.instance.api.crateApiSimplePasteTerminal(id: id, input: input);
+
 void scrollTerminal({required int id, required int lines}) =>
     RustLib.instance.api.crateApiSimpleScrollTerminal(id: id, lines: lines);
+
+void resizeTerminal({required int id, required int rows, required int cols}) =>
+    RustLib.instance.api.crateApiSimpleResizeTerminal(
+      id: id,
+      rows: rows,
+      cols: cols,
+    );

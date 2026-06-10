@@ -89,6 +89,14 @@ pub fn send_input(id: u32, input: String) {
     }
 }
 
+#[flutter_rust_bridge::frb(sync)]
+pub fn paste_terminal(id: u32, input: String) {
+    let lock = terminals().read();
+    if let Some(t) = lock.get(&id) {
+        t.paste(input);
+    }
+}
+
 #[flutter_rust_bridge::frb(init)]
 pub fn init_app() {
     flutter_rust_bridge::setup_default_user_utils();
@@ -99,5 +107,13 @@ pub fn scroll_terminal(id: u32, lines: i32) {
     let lock = terminals().read();
     if let Some(t) = lock.get(&id) {
         t.scroll(lines);
+    }
+}
+
+#[flutter_rust_bridge::frb(sync)]
+pub fn resize_terminal(id: u32, rows: u16, cols: u16) {
+    let lock = terminals().read();
+    if let Some(t) = lock.get(&id) {
+        t.resize(rows, cols);
     }
 }

@@ -134,6 +134,47 @@ impl FlutterTerminal {
         writer.0.flush().unwrap();
     }
 
+    pub fn paste(&self, mut input: String) {
+        let is_bracketed = {
+            let term = self.term.read();
+            term.mode().contains(alacritty_terminal::term::TermMode::BRACKETED_PASTE)
+        };
+
+        let mut writer = self.writer.write();
+        if is_bracketed {
+            // Remove any literal escape characters to avoid escaping bracketed paste
+            input = input.replace('\x1b', "");
+            writer.0.write_all(b"\x1b[200~").unwrap();
+            writer.0.write_all(input.as_bytes()).unwrap();
+            writer.0.write_all(b"\x1b[201~").unwrap();
+        } else {
+            // Standard terminal behavior: send carriage return instead of newline
+            input = input.replace('\n', "\r");
+            writer.0.write_all(input.as_bytes()).unwrap();
+        }
+        writer.0.flush().unwrap();
+    }
+
+    pub fn resize(&self, rows: u16, cols: u16) {
+        {
+            let mut term = self.term.write();
+            term.resize(SimpleDimensions {
+                cols: cols as usize,
+                rows: rows as usize,
+            });
+        }
+        {
+            let master = self.master_pty.write();
+            let _ = master.0.resize(PtySize {
+                rows,
+                cols,
+                pixel_width: 0,
+                pixel_height: 0,
+            });
+        }
+        self.dirty.store(true, Ordering::SeqCst);
+    }
+
     pub fn get_frame(&self) -> Option<TerminalFrame> {
         if !self.dirty.swap(false, Ordering::SeqCst) {
             return None;
@@ -158,6 +199,9 @@ impl FlutterTerminal {
                 let mut attr = 0u32;
                 if cell.flags().contains(Flags::BOLD) {
                     attr |= 1;
+                }
+                if cell.flags().contains(Flags::WRAPLINE) {
+                    attr |= 2;
                 }
                 attributes.push(attr);
             }
