@@ -31,13 +31,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String dco_decode_String(dynamic raw);
 
   @protected
-  TermPreferences dco_decode_box_autoadd_term_preferences(dynamic raw);
-
-  @protected
   TerminalFrame dco_decode_box_autoadd_terminal_frame(dynamic raw);
-
-  @protected
-  double dco_decode_f_64(dynamic raw);
 
   @protected
   int dco_decode_i_32(dynamic raw);
@@ -49,13 +43,7 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List dco_decode_list_prim_u_8_strict(dynamic raw);
 
   @protected
-  TermPreferences? dco_decode_opt_box_autoadd_term_preferences(dynamic raw);
-
-  @protected
   TerminalFrame? dco_decode_opt_box_autoadd_terminal_frame(dynamic raw);
-
-  @protected
-  TermPreferences dco_decode_term_preferences(dynamic raw);
 
   @protected
   TerminalFrame dco_decode_terminal_frame(dynamic raw);
@@ -84,17 +72,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   String sse_decode_String(SseDeserializer deserializer);
 
   @protected
-  TermPreferences sse_decode_box_autoadd_term_preferences(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   TerminalFrame sse_decode_box_autoadd_terminal_frame(
     SseDeserializer deserializer,
   );
-
-  @protected
-  double sse_decode_f_64(SseDeserializer deserializer);
 
   @protected
   int sse_decode_i_32(SseDeserializer deserializer);
@@ -106,17 +86,9 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   Uint8List sse_decode_list_prim_u_8_strict(SseDeserializer deserializer);
 
   @protected
-  TermPreferences? sse_decode_opt_box_autoadd_term_preferences(
-    SseDeserializer deserializer,
-  );
-
-  @protected
   TerminalFrame? sse_decode_opt_box_autoadd_terminal_frame(
     SseDeserializer deserializer,
   );
-
-  @protected
-  TermPreferences sse_decode_term_preferences(SseDeserializer deserializer);
 
   @protected
   TerminalFrame sse_decode_terminal_frame(SseDeserializer deserializer);
@@ -152,19 +124,10 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   void sse_encode_String(String self, SseSerializer serializer);
 
   @protected
-  void sse_encode_box_autoadd_term_preferences(
-    TermPreferences self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_box_autoadd_terminal_frame(
     TerminalFrame self,
     SseSerializer serializer,
   );
-
-  @protected
-  void sse_encode_f_64(double self, SseSerializer serializer);
 
   @protected
   void sse_encode_i_32(int self, SseSerializer serializer);
@@ -182,20 +145,8 @@ abstract class RustLibApiImplPlatform extends BaseApiImpl<RustLibWire> {
   );
 
   @protected
-  void sse_encode_opt_box_autoadd_term_preferences(
-    TermPreferences? self,
-    SseSerializer serializer,
-  );
-
-  @protected
   void sse_encode_opt_box_autoadd_terminal_frame(
     TerminalFrame? self,
-    SseSerializer serializer,
-  );
-
-  @protected
-  void sse_encode_term_preferences(
-    TermPreferences self,
     SseSerializer serializer,
   );
 

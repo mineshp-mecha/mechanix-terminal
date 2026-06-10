@@ -67,7 +67,7 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
   String get codegenVersion => '2.11.1';
 
   @override
-  int get rustContentHash => -492108261;
+  int get rustContentHash => 1971207784;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -80,38 +80,19 @@ class RustLib extends BaseEntrypoint<RustLibApi, RustLibApiImpl, RustLibWire> {
 abstract class RustLibApi extends BaseApi {
   int crateApiSimpleAddTerminal({required int rows, required int cols});
 
-  int crateApiSimpleAddTerminalWithPrefs({
-    required int rows,
-    required int cols,
-    required TermPreferences prefs,
-  });
-
   Stream<int> crateApiSimpleCreateTerminalStream();
 
   TerminalFrame? crateApiSimpleGetTerminalFrame({required int id});
 
-  TermPreferences? crateApiSimpleGetTerminalPrefs({required int id});
-
   Future<void> crateApiSimpleInitApp();
 
-  TermPreferences crateApiSimpleLoadConfigPrefs();
-
   void crateApiSimpleRemoveTerminal({required int id});
-
-  void crateApiSimpleSaveConfigPrefs({required TermPreferences prefs});
 
   void crateApiSimpleScrollTerminal({required int id, required int lines});
 
   void crateApiSimpleSendInput({required int id, required String input});
 
   void crateApiSimpleSetActiveTerminal({required int id});
-
-  Future<TermPreferences> crateApiSimpleTermPreferencesDefault();
-
-  void crateApiSimpleUpdateTerminalPrefs({
-    required int id,
-    required TermPreferences prefs,
-  });
 }
 
 class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
@@ -149,38 +130,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   );
 
   @override
-  int crateApiSimpleAddTerminalWithPrefs({
-    required int rows,
-    required int cols,
-    required TermPreferences prefs,
-  }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_u_16(rows, serializer);
-          sse_encode_u_16(cols, serializer);
-          sse_encode_box_autoadd_term_preferences(prefs, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 2)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_u_32,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSimpleAddTerminalWithPrefsConstMeta,
-        argValues: [rows, cols, prefs],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSimpleAddTerminalWithPrefsConstMeta =>
-      const TaskConstMeta(
-        debugName: "add_terminal_with_prefs",
-        argNames: ["rows", "cols", "prefs"],
-      );
-
-  @override
   Stream<int> crateApiSimpleCreateTerminalStream() {
     final sink = RustStreamSink<int>();
     unawaited(
@@ -192,7 +141,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
             pdeCallFfi(
               generalizedFrbRustBinding,
               serializer,
-              funcId: 3,
+              funcId: 2,
               port: port_,
             );
           },
@@ -222,7 +171,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_u_32(id, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 4)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 3)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_opt_box_autoadd_terminal_frame,
@@ -239,29 +188,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "get_terminal_frame", argNames: ["id"]);
 
   @override
-  TermPreferences? crateApiSimpleGetTerminalPrefs({required int id}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_u_32(id, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_opt_box_autoadd_term_preferences,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSimpleGetTerminalPrefsConstMeta,
-        argValues: [id],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSimpleGetTerminalPrefsConstMeta =>
-      const TaskConstMeta(debugName: "get_terminal_prefs", argNames: ["id"]);
-
-  @override
   Future<void> crateApiSimpleInitApp() {
     return handler.executeNormal(
       NormalTask(
@@ -270,7 +196,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           pdeCallFfi(
             generalizedFrbRustBinding,
             serializer,
-            funcId: 6,
+            funcId: 4,
             port: port_,
           );
         },
@@ -289,35 +215,13 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "init_app", argNames: []);
 
   @override
-  TermPreferences crateApiSimpleLoadConfigPrefs() {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_term_preferences,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSimpleLoadConfigPrefsConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSimpleLoadConfigPrefsConstMeta =>
-      const TaskConstMeta(debugName: "load_config_prefs", argNames: []);
-
-  @override
   void crateApiSimpleRemoveTerminal({required int id}) {
     return handler.executeSync(
       SyncTask(
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_u_32(id, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 5)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -334,29 +238,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
       const TaskConstMeta(debugName: "remove_terminal", argNames: ["id"]);
 
   @override
-  void crateApiSimpleSaveConfigPrefs({required TermPreferences prefs}) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_box_autoadd_term_preferences(prefs, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 9)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSimpleSaveConfigPrefsConstMeta,
-        argValues: [prefs],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSimpleSaveConfigPrefsConstMeta =>
-      const TaskConstMeta(debugName: "save_config_prefs", argNames: ["prefs"]);
-
-  @override
   void crateApiSimpleScrollTerminal({required int id, required int lines}) {
     return handler.executeSync(
       SyncTask(
@@ -364,7 +245,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_u_32(id, serializer);
           sse_encode_i_32(lines, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 10)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 6)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -391,7 +272,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_u_32(id, serializer);
           sse_encode_String(input, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 11)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 7)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -414,7 +295,7 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
         callFfi: () {
           final serializer = SseSerializer(generalizedFrbRustBinding);
           sse_encode_u_32(id, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 12)!;
+          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 8)!;
         },
         codec: SseCodec(
           decodeSuccessData: sse_decode_unit,
@@ -429,63 +310,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
 
   TaskConstMeta get kCrateApiSimpleSetActiveTerminalConstMeta =>
       const TaskConstMeta(debugName: "set_active_terminal", argNames: ["id"]);
-
-  @override
-  Future<TermPreferences> crateApiSimpleTermPreferencesDefault() {
-    return handler.executeNormal(
-      NormalTask(
-        callFfi: (port_) {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          pdeCallFfi(
-            generalizedFrbRustBinding,
-            serializer,
-            funcId: 13,
-            port: port_,
-          );
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_term_preferences,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSimpleTermPreferencesDefaultConstMeta,
-        argValues: [],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSimpleTermPreferencesDefaultConstMeta =>
-      const TaskConstMeta(debugName: "term_preferences_default", argNames: []);
-
-  @override
-  void crateApiSimpleUpdateTerminalPrefs({
-    required int id,
-    required TermPreferences prefs,
-  }) {
-    return handler.executeSync(
-      SyncTask(
-        callFfi: () {
-          final serializer = SseSerializer(generalizedFrbRustBinding);
-          sse_encode_u_32(id, serializer);
-          sse_encode_box_autoadd_term_preferences(prefs, serializer);
-          return pdeCallFfi(generalizedFrbRustBinding, serializer, funcId: 14)!;
-        },
-        codec: SseCodec(
-          decodeSuccessData: sse_decode_unit,
-          decodeErrorData: null,
-        ),
-        constMeta: kCrateApiSimpleUpdateTerminalPrefsConstMeta,
-        argValues: [id, prefs],
-        apiImpl: this,
-      ),
-    );
-  }
-
-  TaskConstMeta get kCrateApiSimpleUpdateTerminalPrefsConstMeta =>
-      const TaskConstMeta(
-        debugName: "update_terminal_prefs",
-        argNames: ["id", "prefs"],
-      );
 
   @protected
   AnyhowException dco_decode_AnyhowException(dynamic raw) {
@@ -506,21 +330,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  TermPreferences dco_decode_box_autoadd_term_preferences(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return dco_decode_term_preferences(raw);
-  }
-
-  @protected
   TerminalFrame dco_decode_box_autoadd_terminal_frame(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return dco_decode_terminal_frame(raw);
-  }
-
-  @protected
-  double dco_decode_f_64(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw as double;
   }
 
   @protected
@@ -542,33 +354,9 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  TermPreferences? dco_decode_opt_box_autoadd_term_preferences(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    return raw == null ? null : dco_decode_box_autoadd_term_preferences(raw);
-  }
-
-  @protected
   TerminalFrame? dco_decode_opt_box_autoadd_terminal_frame(dynamic raw) {
     // Codec=Dco (DartCObject based), see doc to use other codecs
     return raw == null ? null : dco_decode_box_autoadd_terminal_frame(raw);
-  }
-
-  @protected
-  TermPreferences dco_decode_term_preferences(dynamic raw) {
-    // Codec=Dco (DartCObject based), see doc to use other codecs
-    final arr = raw as List<dynamic>;
-    if (arr.length != 8)
-      throw Exception('unexpected arr length: expect 8 but see ${arr.length}');
-    return TermPreferences(
-      fontFamily: dco_decode_String(arr[0]),
-      fontSize: dco_decode_f_64(arr[1]),
-      lineHeight: dco_decode_f_64(arr[2]),
-      colorForeground: dco_decode_u_32(arr[3]),
-      colorBackground: dco_decode_u_32(arr[4]),
-      colorCursor: dco_decode_u_32(arr[5]),
-      colorSelection: dco_decode_u_32(arr[6]),
-      palette: dco_decode_list_prim_u_32_strict(arr[7]),
-    );
   }
 
   @protected
@@ -634,25 +422,11 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  TermPreferences sse_decode_box_autoadd_term_preferences(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return (sse_decode_term_preferences(deserializer));
-  }
-
-  @protected
   TerminalFrame sse_decode_box_autoadd_terminal_frame(
     SseDeserializer deserializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     return (sse_decode_terminal_frame(deserializer));
-  }
-
-  @protected
-  double sse_decode_f_64(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    return deserializer.buffer.getFloat64();
   }
 
   @protected
@@ -676,19 +450,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  TermPreferences? sse_decode_opt_box_autoadd_term_preferences(
-    SseDeserializer deserializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    if (sse_decode_bool(deserializer)) {
-      return (sse_decode_box_autoadd_term_preferences(deserializer));
-    } else {
-      return null;
-    }
-  }
-
-  @protected
   TerminalFrame? sse_decode_opt_box_autoadd_terminal_frame(
     SseDeserializer deserializer,
   ) {
@@ -699,29 +460,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     } else {
       return null;
     }
-  }
-
-  @protected
-  TermPreferences sse_decode_term_preferences(SseDeserializer deserializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    var var_fontFamily = sse_decode_String(deserializer);
-    var var_fontSize = sse_decode_f_64(deserializer);
-    var var_lineHeight = sse_decode_f_64(deserializer);
-    var var_colorForeground = sse_decode_u_32(deserializer);
-    var var_colorBackground = sse_decode_u_32(deserializer);
-    var var_colorCursor = sse_decode_u_32(deserializer);
-    var var_colorSelection = sse_decode_u_32(deserializer);
-    var var_palette = sse_decode_list_prim_u_32_strict(deserializer);
-    return TermPreferences(
-      fontFamily: var_fontFamily,
-      fontSize: var_fontSize,
-      lineHeight: var_lineHeight,
-      colorForeground: var_colorForeground,
-      colorBackground: var_colorBackground,
-      colorCursor: var_colorCursor,
-      colorSelection: var_colorSelection,
-      palette: var_palette,
-    );
   }
 
   @protected
@@ -805,27 +543,12 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_box_autoadd_term_preferences(
-    TermPreferences self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_term_preferences(self, serializer);
-  }
-
-  @protected
   void sse_encode_box_autoadd_terminal_frame(
     TerminalFrame self,
     SseSerializer serializer,
   ) {
     // Codec=Sse (Serialization based), see doc to use other codecs
     sse_encode_terminal_frame(self, serializer);
-  }
-
-  @protected
-  void sse_encode_f_64(double self, SseSerializer serializer) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    serializer.buffer.putFloat64(self);
   }
 
   @protected
@@ -855,19 +578,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
   }
 
   @protected
-  void sse_encode_opt_box_autoadd_term_preferences(
-    TermPreferences? self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-
-    sse_encode_bool(self != null, serializer);
-    if (self != null) {
-      sse_encode_box_autoadd_term_preferences(self, serializer);
-    }
-  }
-
-  @protected
   void sse_encode_opt_box_autoadd_terminal_frame(
     TerminalFrame? self,
     SseSerializer serializer,
@@ -878,22 +588,6 @@ class RustLibApiImpl extends RustLibApiImplPlatform implements RustLibApi {
     if (self != null) {
       sse_encode_box_autoadd_terminal_frame(self, serializer);
     }
-  }
-
-  @protected
-  void sse_encode_term_preferences(
-    TermPreferences self,
-    SseSerializer serializer,
-  ) {
-    // Codec=Sse (Serialization based), see doc to use other codecs
-    sse_encode_String(self.fontFamily, serializer);
-    sse_encode_f_64(self.fontSize, serializer);
-    sse_encode_f_64(self.lineHeight, serializer);
-    sse_encode_u_32(self.colorForeground, serializer);
-    sse_encode_u_32(self.colorBackground, serializer);
-    sse_encode_u_32(self.colorCursor, serializer);
-    sse_encode_u_32(self.colorSelection, serializer);
-    sse_encode_list_prim_u_32_strict(self.palette, serializer);
   }
 
   @protected
