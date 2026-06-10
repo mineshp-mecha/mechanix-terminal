@@ -1,71 +1,101 @@
 import 'dart:async';
+import 'dart:typed_data';
 import 'dart:ui' as ui;
+
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_alacritty/constants.dart';
+import 'package:flutter_alacritty/settings_page.dart';
 import 'package:flutter_alacritty/src/rust/api/simple.dart';
-import 'package:flutter_alacritty/src/rust/terminal.dart';
 import 'package:flutter_alacritty/src/rust/frb_generated.dart';
+import 'package:flutter_alacritty/src/rust/terminal.dart';
+
+TermPreferences getPreferencesFor(ThemeMode mode, double fontSize) {
+  final isDark =
+      mode == ThemeMode.dark ||
+      (mode == ThemeMode.system &&
+          ui.PlatformDispatcher.instance.platformBrightness ==
+              ui.Brightness.dark);
+
+  if (isDark) {
+    return TermPreferences(
+      fontFamily: 'monospace',
+      fontSize: fontSize,
+      lineHeight: 1.2,
+      colorForeground: 0xCDD6F4,
+      colorBackground: 0x1E1E2E,
+      colorCursor: 0xF5C2E7,
+      colorSelection: 0x45475A,
+      palette: defaultDarkThemePalette,
+    );
+  } else {
+    return TermPreferences(
+      fontFamily: 'monospace',
+      fontSize: fontSize,
+      lineHeight: 1.2,
+      colorForeground: 0x4C4F69,
+      colorBackground: 0xEFF1F5,
+      colorCursor: 0xEA76CB,
+      colorSelection: 0xACB0BE,
+      palette: defaultLightThemePalette,
+    );
+  }
+}
 
 Stream<int>? _terminalStream;
 
 Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   await RustLib.init();
+  final initialPrefs = loadConfigPrefs();
   _terminalStream = createTerminalStream().asBroadcastStream();
-  runApp(const MyApp());
+  runApp(MyApp(initialPrefs: initialPrefs));
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({super.key});
+  final TermPreferences initialPrefs;
+  const MyApp({super.key, required this.initialPrefs});
 
   @override
   State<MyApp> createState() => _MyAppState();
 }
 
 class _MyAppState extends State<MyApp> {
-  double _fontSize = 14.0;
-  ThemeMode _themeMode = ThemeMode.dark;
+  late TermPreferences _prefs;
 
-  void _updateFontSize(double newSize) {
-    setState(() {
-      _fontSize = newSize;
-    });
+  @override
+  void initState() {
+    super.initState();
+    _prefs = widget.initialPrefs;
   }
 
-  void _updateThemeMode(ThemeMode newMode) {
-    setState(() {
-      _themeMode = newMode;
-    });
+  void _updatePrefs(TermPreferences p) {
+    setState(() => _prefs = p);
+    saveConfigPrefs(prefs: p);
   }
 
   @override
   Widget build(BuildContext context) {
+    final isDark = _prefs.colorBackground < 0x808080;
     return MaterialApp(
       theme: ThemeData.light(),
+      debugShowCheckedModeBanner: false,
       darkTheme: ThemeData.dark(),
-      themeMode: _themeMode,
-      home: TerminalTabs(
-        fontSize: _fontSize,
-        themeMode: _themeMode,
-        onFontSizeChanged: _updateFontSize,
-        onThemeModeChanged: _updateThemeMode,
-      ),
+      themeMode: isDark ? ThemeMode.dark : ThemeMode.light,
+      home: TerminalTabs(prefs: _prefs, onPrefsChanged: _updatePrefs),
     );
   }
 }
 
 class TerminalTabs extends StatefulWidget {
-  final double fontSize;
-  final ThemeMode themeMode;
-  final ValueChanged<double> onFontSizeChanged;
-  final ValueChanged<ThemeMode> onThemeModeChanged;
+  final TermPreferences prefs;
+  final ValueChanged<TermPreferences> onPrefsChanged;
 
   const TerminalTabs({
     super.key,
-    required this.fontSize,
-    required this.themeMode,
-    required this.onFontSizeChanged,
-    required this.onThemeModeChanged,
+    required this.prefs,
+    required this.onPrefsChanged,
   });
 
   @override
@@ -91,7 +121,7 @@ class _TerminalTabsState extends State<TerminalTabs>
 
   void _addTab() {
     setState(() {
-      final id = addTerminal(rows: 24, cols: 80);
+      final id = addTerminalWithPrefs(rows: 24, cols: 80, prefs: widget.prefs);
       _terminalIds.add(id);
 
       _tabController?.dispose();
@@ -190,70 +220,14 @@ class _TerminalTabsState extends State<TerminalTabs>
                 constraints: const BoxConstraints(minWidth: 44, minHeight: 44),
                 icon: const Icon(Icons.settings),
                 onPressed: () {
-                  showDialog(
-                    context: context,
-                    builder: (context) => StatefulBuilder(
-                      builder: (context, setDialogState) {
-                        return AlertDialog(
-                          title: const Text("Settings"),
-                          content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Text("Font Size"),
-                              Slider(
-                                value: widget.fontSize,
-                                min: 8,
-                                max: 30,
-                                divisions: 22,
-                                label: widget.fontSize.round().toString(),
-                                onChanged: (val) {
-                                  widget.onFontSizeChanged(val);
-                                  setDialogState(() {});
-                                },
-                              ),
-                              const SizedBox(height: 16),
-                              ListTile(
-                                title: const Text("Theme"),
-                                trailing: DropdownButton<ThemeMode>(
-                                  value: widget.themeMode,
-                                  onChanged: (ThemeMode? newMode) {
-                                    if (newMode != null) {
-                                      widget.onThemeModeChanged(newMode);
-                                      setDialogState(() {});
-                                    }
-                                  },
-                                  items: const [
-                                    DropdownMenuItem(
-                                      value: ThemeMode.light,
-                                      child: Text("Light"),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: ThemeMode.dark,
-                                      child: Text("Dark"),
-                                    ),
-                                    DropdownMenuItem(
-                                      value: ThemeMode.system,
-                                      child: Text("System"),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ],
-                          ),
-                          actions: [
-                            TextButton(
-                              style: TextButton.styleFrom(
-                                minimumSize: const Size(
-                                  64,
-                                  44,
-                                ), // Ensure ≥ 44dp target
-                              ),
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text("Close"),
-                            ),
-                          ],
-                        );
-                      },
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      fullscreenDialog: true,
+                      builder: (_) => TerminalSettingsPage(
+                        initialPrefs: widget.prefs,
+                        onPrefsChanged: widget.onPrefsChanged,
+                      ),
                     ),
                   );
                 },
@@ -269,7 +243,8 @@ class _TerminalTabsState extends State<TerminalTabs>
         children: _terminalIds.asMap().entries.map((entry) {
           return TerminalView(
             terminalId: entry.value,
-            fontSize: widget.fontSize,
+            fontSize: widget.prefs.fontSize,
+            prefs: widget.prefs,
             tabController: _tabController!,
             index: entry.key,
           );
@@ -282,12 +257,14 @@ class _TerminalTabsState extends State<TerminalTabs>
 class TerminalView extends StatefulWidget {
   final int terminalId;
   final double fontSize;
+  final TermPreferences prefs;
   final TabController tabController;
   final int index;
   const TerminalView({
     super.key,
     required this.terminalId,
     required this.fontSize,
+    required this.prefs,
     required this.tabController,
     required this.index,
   });
@@ -319,6 +296,9 @@ class _TerminalViewState extends State<TerminalView>
       _activateTerminal();
     }
 
+    // Load active settings/preferences on terminal startup
+    updateTerminalPrefs(id: widget.terminalId, prefs: widget.prefs);
+
     _subscription = _terminalStream?.listen((id) {
       if (id == widget.terminalId && mounted) {
         final newFrame = getTerminalFrame(id: widget.terminalId);
@@ -342,6 +322,9 @@ class _TerminalViewState extends State<TerminalView>
       if (widget.tabController.index == widget.index) {
         _activateTerminal();
       }
+    }
+    if (oldWidget.prefs != widget.prefs) {
+      updateTerminalPrefs(id: widget.terminalId, prefs: widget.prefs);
     }
   }
 
@@ -554,16 +537,10 @@ class _TerminalViewState extends State<TerminalView>
             }
           },
           child: Container(
-            color: Theme.of(context).scaffoldBackgroundColor,
+            color: Color(0xFF000000 | widget.prefs.colorBackground),
             child: CustomPaint(
               painter: _frame != null
-                  ? TerminalPainter(
-                      _frame!,
-                      widget.fontSize,
-                      Theme.of(context).textTheme.bodyMedium?.color ??
-                          Colors.white,
-                      widget.terminalId,
-                    )
+                  ? TerminalPainter(_frame!, widget.prefs, widget.terminalId)
                   : null,
               child: Container(),
             ),
@@ -576,29 +553,43 @@ class _TerminalViewState extends State<TerminalView>
 
 class TerminalPainter extends CustomPainter {
   final TerminalFrame frame;
-  final double fontSize;
-  final Color textColor;
+  final TermPreferences prefs;
   final int terminalId;
 
   static final Map<String, ui.Paragraph> _rowCache = {};
 
-  TerminalPainter(this.frame, this.fontSize, this.textColor, this.terminalId);
+  TerminalPainter(this.frame, this.prefs, this.terminalId);
+
+  int _hashList(Uint32List list, int start, int end) {
+    int hash = 17;
+    for (int i = start; i < end; i++) {
+      hash = hash * 31 + list[i];
+    }
+    return hash;
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
-    final textStyle = ui.TextStyle(
-      color: textColor,
-      fontFamily: 'monospace',
+    final double fontSize = prefs.fontSize;
+    final String fontFamily = prefs.fontFamily;
+    final double lineHeight = prefs.lineHeight;
+
+    final baselineTextStyle = ui.TextStyle(
+      color: Color(0xFF000000 | prefs.colorForeground),
+      fontFamily: fontFamily,
       fontSize: fontSize,
+      height: lineHeight,
     );
 
     final paragraphStyle = ui.ParagraphStyle(
       textAlign: TextAlign.left,
       fontSize: fontSize,
-      fontFamily: 'monospace',
+      fontFamily: fontFamily,
+      height: lineHeight,
     );
+
     final pb = ui.ParagraphBuilder(paragraphStyle)
-      ..pushStyle(textStyle)
+      ..pushStyle(baselineTextStyle)
       ..addText('X');
     final charMeasure = pb.build()
       ..layout(const ui.ParagraphConstraints(width: double.infinity));
@@ -615,13 +606,59 @@ class TerminalPainter extends CustomPainter {
           : endIndex;
       final rowContent = frame.content.substring(startIndex, actualEnd);
 
-      final cacheKey = "${terminalId}_${y}_${rowContent}_${fontSize}";
+      final attrHash = _hashList(frame.attributes, startIndex, actualEnd);
+      final cacheKey =
+          "${terminalId}_${y}_${rowContent}_${attrHash}_${fontSize}_$fontFamily";
 
       ui.Paragraph? paragraph = _rowCache[cacheKey];
       if (paragraph == null) {
         final rowBuilder = ui.ParagraphBuilder(paragraphStyle);
-        rowBuilder.pushStyle(textStyle);
-        rowBuilder.addText(rowContent);
+
+        int currentSpanStart = 0;
+        int? lastAttr;
+
+        void commitSpan(int end) {
+          if (end <= currentSpanStart) return;
+          final spanText = rowContent.substring(currentSpanStart, end);
+          final attr = lastAttr ?? 0;
+          final flags = attr & 0xFF;
+          final fgColorVal = (attr >> 8) & 0xFFFFFF;
+
+          final isBold = (flags & 1) != 0;
+          final isItalic = (flags & 2) != 0;
+          final isUnderline = (flags & 4) != 0;
+
+          final fgColor = Color(
+            0xFF000000 | (fgColorVal != 0 ? fgColorVal : prefs.colorForeground),
+          );
+
+          rowBuilder.pushStyle(
+            ui.TextStyle(
+              color: fgColor,
+              fontFamily: fontFamily,
+              fontSize: fontSize,
+              height: lineHeight,
+              fontWeight: isBold ? FontWeight.bold : FontWeight.normal,
+              fontStyle: isItalic ? FontStyle.italic : FontStyle.normal,
+              decoration: isUnderline
+                  ? TextDecoration.underline
+                  : TextDecoration.none,
+            ),
+          );
+          rowBuilder.addText(spanText);
+          rowBuilder.pop();
+        }
+
+        for (int col = 0; col < (actualEnd - startIndex); col++) {
+          final attr = frame.attributes[startIndex + col];
+          if (lastAttr != attr) {
+            commitSpan(col);
+            currentSpanStart = col;
+            lastAttr = attr;
+          }
+        }
+        commitSpan(actualEnd - startIndex);
+
         paragraph = rowBuilder.build();
         paragraph.layout(
           ui.ParagraphConstraints(width: charWidth * frame.cols),
@@ -632,16 +669,17 @@ class TerminalPainter extends CustomPainter {
       canvas.drawParagraph(paragraph, Offset(0, y * charHeight));
     }
 
-    final cursorPaint = Paint()..color = textColor.withOpacity(0.5);
-    canvas.drawRect(
-      Rect.fromLTWH(
-        frame.cursorX * charWidth,
-        frame.cursorY * charHeight,
-        charWidth,
-        charHeight,
-      ),
-      cursorPaint,
-    );
+    if (frame.cursorY != 65535) {
+      final cursorPaint = Paint()
+        ..color = Color(0xFF000000 | prefs.colorCursor).withValues(alpha: 0.65);
+      final double cursorLeft = frame.cursorX * charWidth;
+      final double cursorTop = frame.cursorY * charHeight;
+      // Block cursor
+      canvas.drawRect(
+        Rect.fromLTWH(cursorLeft, cursorTop, charWidth, charHeight),
+        cursorPaint,
+      );
+    }
 
     if (_rowCache.length > 1000) {
       _rowCache.clear();
@@ -651,7 +689,7 @@ class TerminalPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant TerminalPainter oldDelegate) {
     return oldDelegate.frame != frame ||
-        oldDelegate.fontSize != fontSize ||
-        oldDelegate.textColor != textColor;
+        oldDelegate.prefs != prefs ||
+        oldDelegate.terminalId != terminalId;
   }
 }

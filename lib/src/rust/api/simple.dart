@@ -3,20 +3,41 @@
 
 // ignore_for_file: invalid_use_of_internal_member, unused_import, unnecessary_import
 
-import '../frb_generated.dart';
-import '../terminal.dart';
 import 'package:flutter_rust_bridge/flutter_rust_bridge_for_generated.dart';
 
-// These functions are ignored because they are not marked as `pub`: `active_id`, `terminals`
+import '../frb_generated.dart';
+import '../terminal.dart';
+
+// These functions are ignored because they are not marked as `pub`: `active_id`, `catppuccin_mocha_palette`, `terminals`
+// These function are ignored because they are on traits that is not defined in current crate (put an empty `#[frb]` on it to unignore): `clone`, `fmt`
 
 int addTerminal({required int rows, required int cols}) =>
     RustLib.instance.api.crateApiSimpleAddTerminal(rows: rows, cols: cols);
+
+int addTerminalWithPrefs({
+  required int rows,
+  required int cols,
+  required TermPreferences prefs,
+}) => RustLib.instance.api.crateApiSimpleAddTerminalWithPrefs(
+  rows: rows,
+  cols: cols,
+  prefs: prefs,
+);
 
 void removeTerminal({required int id}) =>
     RustLib.instance.api.crateApiSimpleRemoveTerminal(id: id);
 
 void setActiveTerminal({required int id}) =>
     RustLib.instance.api.crateApiSimpleSetActiveTerminal(id: id);
+
+void updateTerminalPrefs({required int id, required TermPreferences prefs}) =>
+    RustLib.instance.api.crateApiSimpleUpdateTerminalPrefs(
+      id: id,
+      prefs: prefs,
+    );
+
+TermPreferences? getTerminalPrefs({required int id}) =>
+    RustLib.instance.api.crateApiSimpleGetTerminalPrefs(id: id);
 
 Stream<int> createTerminalStream() =>
     RustLib.instance.api.crateApiSimpleCreateTerminalStream();
@@ -29,3 +50,61 @@ void sendInput({required int id, required String input}) =>
 
 void scrollTerminal({required int id, required int lines}) =>
     RustLib.instance.api.crateApiSimpleScrollTerminal(id: id, lines: lines);
+
+TermPreferences loadConfigPrefs() =>
+    RustLib.instance.api.crateApiSimpleLoadConfigPrefs();
+
+void saveConfigPrefs({required TermPreferences prefs}) =>
+    RustLib.instance.api.crateApiSimpleSaveConfigPrefs(prefs: prefs);
+
+class TermPreferences {
+  final String fontFamily;
+  final double fontSize;
+
+  final double lineHeight;
+  final int colorForeground;
+  final int colorBackground;
+  final int colorCursor;
+  final int colorSelection;
+
+  final Uint32List palette;
+
+  const TermPreferences({
+    required this.fontFamily,
+    required this.fontSize,
+    required this.lineHeight,
+    required this.colorForeground,
+    required this.colorBackground,
+    required this.colorCursor,
+    required this.colorSelection,
+    required this.palette,
+  });
+
+  static Future<TermPreferences> default_() =>
+      RustLib.instance.api.crateApiSimpleTermPreferencesDefault();
+
+  @override
+  int get hashCode =>
+      fontFamily.hashCode ^
+      fontSize.hashCode ^
+      lineHeight.hashCode ^
+      colorForeground.hashCode ^
+      colorBackground.hashCode ^
+      colorCursor.hashCode ^
+      colorSelection.hashCode ^
+      palette.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is TermPreferences &&
+          runtimeType == other.runtimeType &&
+          fontFamily == other.fontFamily &&
+          fontSize == other.fontSize &&
+          lineHeight == other.lineHeight &&
+          colorForeground == other.colorForeground &&
+          colorBackground == other.colorBackground &&
+          colorCursor == other.colorCursor &&
+          colorSelection == other.colorSelection &&
+          palette == other.palette;
+}
