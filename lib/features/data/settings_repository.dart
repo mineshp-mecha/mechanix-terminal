@@ -20,7 +20,9 @@ class SettingsRepository {
         throw Exception('HOME environment variable is not set');
       }
 
-      final storeDir = Directory('$home/.config/mechanix_terminal/objectbox');
+      final storeDir = Directory(
+        '$home/.config/mechanix/mechanix_terminal/objectbox',
+      );
 
       if (!await storeDir.exists()) {
         await storeDir.create(recursive: true);
@@ -44,8 +46,6 @@ class SettingsRepository {
     }
 
     final defaultSettings = AppSettings(fontSize: 14.0);
-
-    print('defaultSettings: $defaultSettings');
 
     final id = settingsBox.put(defaultSettings);
     defaultSettings.id = id;
