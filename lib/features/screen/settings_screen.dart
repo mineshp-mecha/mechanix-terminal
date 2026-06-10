@@ -140,6 +140,8 @@ class _TerminalSettingsPageState extends State<TerminalSettingsPage> {
                 _applyTheme(t);
                 Navigator.pop(context);
               },
+              splashColor: Colors.transparent,
+              hoverColor: Colors.white.withValues(alpha: 0.05),
             ),
           ),
           const SizedBox(height: 24),
@@ -232,6 +234,8 @@ class _TerminalSettingsPageState extends State<TerminalSettingsPage> {
                       });
                       Navigator.pop(context);
                     },
+                    splashColor: Colors.transparent,
+                    hoverColor: Colors.white.withValues(alpha: 0.05),
                   ),
                 ),
                 const SizedBox(height: 24),
@@ -248,6 +252,22 @@ class _TerminalSettingsPageState extends State<TerminalSettingsPage> {
     const bgColor = Color(0xFF141414); // Dark background
     const textColor = Colors.white70;
     const accentColor = Colors.deepOrange;
+
+    final buttonStyle = ButtonStyle(
+      splashFactory: NoSplash.splashFactory,
+      overlayColor: WidgetStateProperty.resolveWith<Color?>((
+        Set<WidgetState> states,
+      ) {
+        if (states.contains(WidgetState.pressed)) {
+          return Colors.white.withValues(alpha: 0.2);
+        }
+        if (states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.focused)) {
+          return Colors.white.withValues(alpha: 0.05);
+        }
+        return null;
+      }),
+    );
 
     return Scaffold(
       backgroundColor: bgColor,
@@ -276,6 +296,7 @@ class _TerminalSettingsPageState extends State<TerminalSettingsPage> {
             ),
             const Spacer(),
             TextButton(
+              style: buttonStyle,
               onPressed: _applySettings,
               child: const Text(
                 "Done",
