@@ -15,7 +15,6 @@ class ColorTile extends StatelessWidget {
           label,
           style: const TextStyle(
             color: Color(0xFFCDD6F4),
-            fontFamily: 'monospace',
             fontSize: 14,
           ),
         ),
@@ -34,7 +33,6 @@ class ColorTile extends StatelessWidget {
           '#${color.toRadixString(16).toUpperCase().padLeft(6, '0')}',
           style: const TextStyle(
             color: Color(0xFF6C7086),
-            fontFamily: 'monospace',
             fontSize: 12,
           ),
         ),
