@@ -59,7 +59,13 @@ class SettingsRepository {
   }
 
   void saveSettings(AppSettings settings) {
-    settingsBox.put(settings);
+    try {
+    settingsBox.put(settings);  
+    } catch (e, stackTrace) {
+      AppLogger.e('Unable to save settings: $e');
+      AppLogger.e(stackTrace.toString());
+      rethrow;
+    }
   }
 
   void close() {
