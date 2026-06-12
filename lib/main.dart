@@ -7,6 +7,7 @@ import 'package:mechanix_terminal/core/utils/app_theme.dart';
 import 'package:mechanix_terminal/features/data/settings.dart';
 import 'package:mechanix_terminal/features/data/settings_repository.dart';
 import 'package:mechanix_terminal/features/screen/terminal_tabs_screen.dart';
+import 'package:mechanix_terminal/l10n/app_localizations.dart';
 import 'package:mechanix_terminal/src/rust/api/simple.dart';
 import 'package:mechanix_terminal/src/rust/frb_generated.dart';
 import 'package:show_fps/show_fps.dart';
@@ -71,6 +72,8 @@ class _MyAppState extends State<MyApp> {
       theme: AppTheme.light,
       darkTheme: AppTheme.dark,
       themeMode: themeMode,
+      localizationsDelegates: AppLocalizations.localizationsDelegates,
+      supportedLocales: AppLocalizations.supportedLocales,
       debugShowCheckedModeBanner: false,
       home: TerminalTabs(
         settings: _settings,

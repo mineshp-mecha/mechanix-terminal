@@ -2,6 +2,9 @@ import 'dart:typed_data';
 
 import 'package:flutter/services.dart';
 
+class Constants {
+  static const String dbPath = '.config/mechanix_apps/terminal/objectbox';
+}
 class TermTheme {
   final String name;
   final int fg, bg, cursor, selection;

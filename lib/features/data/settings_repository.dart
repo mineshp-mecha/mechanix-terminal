@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:mechanix_terminal/core/utils/app_logger.dart';
+import 'package:mechanix_terminal/core/utils/constants.dart';
 import 'package:mechanix_terminal/features/data/settings.dart';
 import 'package:mechanix_terminal/objectbox.g.dart';
 
@@ -20,9 +21,7 @@ class SettingsRepository {
         throw Exception('HOME environment variable is not set');
       }
 
-      final storeDir = Directory(
-        '$home/.config/mechanix/mechanix_terminal/objectbox',
-      );
+      final storeDir = Directory('$home/${Constants.dbPath}');
 
       if (!await storeDir.exists()) {
         await storeDir.create(recursive: true);
@@ -39,18 +38,24 @@ class SettingsRepository {
   }
 
   AppSettings getSettings() {
-    final settings = settingsBox.getAll().firstOrNull;
+    try { 
+      final settings = settingsBox.getAll().firstOrNull;
 
-    if (settings != null) {
-      return settings;
+      if (settings != null) {
+        return settings;
+      }
+
+      final defaultSettings = AppSettings(fontSize: 14.0);
+
+      final id = settingsBox.put(defaultSettings);
+      defaultSettings.id = id;
+
+      return defaultSettings;
+    } catch (e, stackTrace) {
+      AppLogger.e('Unable to load settings: $e');
+      AppLogger.e(stackTrace.toString());
+      rethrow;
     }
-
-    final defaultSettings = AppSettings(fontSize: 14.0);
-
-    final id = settingsBox.put(defaultSettings);
-    defaultSettings.id = id;
-
-    return defaultSettings;
   }
 
   void saveSettings(AppSettings settings) {

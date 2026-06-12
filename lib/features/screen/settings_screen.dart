@@ -3,6 +3,7 @@ import 'package:mechanix_terminal/core/utils/constants.dart';
 import 'package:mechanix_terminal/features/data/settings.dart';
 import 'package:mechanix_terminal/features/widgets/color_tile.dart';
 import 'package:mechanix_terminal/features/widgets/settings_tile.dart';
+import 'package:mechanix_terminal/l10n/app_localizations.dart';
 
 class TerminalSettingsPage extends StatefulWidget {
   final AppSettings settings;
@@ -279,12 +280,12 @@ class _TerminalSettingsPageState extends State<TerminalSettingsPage> {
           children: [
             GestureDetector(
               onTap: () => Navigator.pop(context),
-              child: const Row(
+              child: Row(
                 children: [
                   Icon(Icons.arrow_back_ios, size: 16, color: textColor),
                   SizedBox(width: 4),
                   Text(
-                    "Settings",
+                    AppLocalizations.of(context)!.settings,
                     style: TextStyle(
                       color: textColor,
                       fontSize: 16,
@@ -298,8 +299,8 @@ class _TerminalSettingsPageState extends State<TerminalSettingsPage> {
             TextButton(
               style: buttonStyle,
               onPressed: _applySettings,
-              child: const Text(
-                "Done",
+              child: Text(
+                AppLocalizations.of(context)!.apply,
                 style: TextStyle(
                   color: accentColor,
                   fontSize: 16,
@@ -312,29 +313,29 @@ class _TerminalSettingsPageState extends State<TerminalSettingsPage> {
       ),
       body: ListView(
         children: [
-          _buildSectionHeader("Customize", textColor),
+          _buildSectionHeader(AppLocalizations.of(context)!.customize, textColor),
           _buildDivider(),
           SettingsTile(
-            label: "Theme",
+            label: AppLocalizations.of(context)!.theme,
             value: _themeName,
             onTap: _showThemePicker,
           ),
           _buildDivider(),
           SettingsTile(
-            label: "Font",
+            label: AppLocalizations.of(context)!.font,
             value: "$_fontFamily ${_fontSize.toInt()}px",
             onTap: _showFontPicker,
           ),
-          _buildSectionHeader("Color", textColor),
+          _buildSectionHeader(AppLocalizations.of(context)!.color, textColor),
 
           _buildDivider(),
-          ColorTile(label: "Foreground", color: _colorFg),
+          ColorTile(label: AppLocalizations.of(context)!.foreground, color: _colorFg),
           _buildDivider(),
-          ColorTile(label: "Background", color: _colorBg),
+          ColorTile(label: AppLocalizations.of(context)!.background, color: _colorBg),
           _buildDivider(),
-          ColorTile(label: "Cursor", color: _colorCursor),
+          ColorTile(label: AppLocalizations.of(context)!.cursor, color: _colorCursor),
           _buildDivider(),
-          ColorTile(label: "Selection", color: _colorSelection),
+          ColorTile(label: AppLocalizations.of(context)!.selection, color: _colorSelection),
         ],
       ),
     );

@@ -1,0 +1,12 @@
+{
+  "customize": "Customize",
+  "theme": "Theme",
+  "font": "Font",
+  "color": "Color",
+  "foreground": "Foreground",
+  "background": "Background",
+  "cursor": "Cursor",
+  "selection": "Selection",
+  "apply": "Apply",
+  "settings": "Settings"
+}
