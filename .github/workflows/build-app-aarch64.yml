@@ -1,0 +1,163 @@
+name: Build Terminal aarch64
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - dev
+      - pre-release
+      - build*
+    paths:
+      - ".github/workflows/build-app-aarch64.yml"
+      - "utils/**"
+      - "package-rpm.nu"
+      - "packaging-metadata.yaml"
+      - "pubspec.yaml"
+      - "lib/**"
+      - "elinux/**"
+
+env:
+  CARGO_INCREMENTAL: 0
+  CARGO_NET_RETRY: 10
+  RUST_BACKTRACE: short
+  RUSTUP_MAX_RETRIES: 10
+  CARGO_NET_GIT_FETCH_WITH_CLI: true
+  MECHA_PULP_USERNAME: ${{ secrets.MECHA_PULP_USERNAME }}
+  MECHA_PULP_PASSWORD: ${{ secrets.MECHA_PULP_PASSWORD }}
+  MECHA_PULP_API_URL: ${{ vars.MECHA_PULP_API_URL }}
+  MECHA_PULP_RPMS_REPOSITORY_NAME: ${{ vars.MECHA_PULP_RPMS_REPOSITORY_NAME }}
+
+jobs:
+  build:
+    name: mechanix-terminal
+    runs-on: ubuntu-24.04-arm
+    environment: pre-release
+    continue-on-error: true
+
+    steps:
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y git tar unzip curl clang cmake pkg-config \
+            libwayland-dev libwayland-cursor0 libwayland-egl1 \
+            libwayland-egl-backend-dev libegl1-mesa-dev libgles2-mesa-dev libxkbcommon-dev \
+            libgstreamer1.0-dev \
+            libgstreamer-plugins-base1.0-dev \
+            rpm build-essential rpm2cpio rpmlint dnf jq pipx
+
+      - name: Install Nushell
+        run: |
+          curl -fsSL https://apt.fury.io/nushell/gpg.key | sudo gpg --dearmor -o /etc/apt/trusted.gpg.d/fury-nushell.gpg
+          echo "deb https://apt.fury.io/nushell/ /" | sudo tee /etc/apt/sources.list.d/fury.list
+          sudo apt update
+          sudo apt install -y nushell
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          target: aarch64-unknown-linux-gnu
+
+      - name: Setup | Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Install Flutter eLinux Toolchain
+        run: |
+          if [ ! -d "/opt/flutter-elinux" ]; then
+            git clone https://github.com/flutter-elinux/flutter-elinux.git
+            sudo mv flutter-elinux /opt/
+          fi
+
+          if [ ! -x "/opt/flutter-elinux/bin/flutter-elinux" ]; then
+            echo "flutter-elinux binary not found at /opt/flutter-elinux/bin/flutter-elinux"
+            ls -la /opt/flutter-elinux || true
+            ls -la /opt/flutter-elinux/bin || true
+            exit 1
+          fi
+
+          echo "/opt/flutter-elinux/bin" >> $GITHUB_PATH
+
+      - name: Build Rust library
+        run: |
+          cd rust
+          cargo build --release --target aarch64-unknown-linux-gnu
+
+      - name: Build terminal
+        run: |
+          flutter-elinux pub get
+          flutter-elinux build elinux --release
+
+      - name: Update script permissions
+        run: |
+          chmod +x package-rpm.nu
+          chmod +x utils/*.nu
+
+      - name: Package RPM
+        run: |
+          nu package-rpm.nu terminal ./build/rpm
+
+      - name: Check package sizes
+        run: |
+          RPM_FILE=$(find ./build/rpm -name "mechanix-terminal*.rpm" -type f | head -n1)
+
+          if [ -f "$RPM_FILE" ]; then
+            RPM_SIZE=$(stat -c%s "$RPM_FILE")
+            RPM_SIZE_MB=$((RPM_SIZE / 1048576))
+            echo "RPM size: $RPM_SIZE_MB MB"
+            if [ "$RPM_SIZE_MB" -lt 1 ]; then
+              echo "RPM file too small: $RPM_SIZE_MB MB"
+              exit 1
+            fi
+          else
+            echo "RPM file not found"
+            exit 1
+          fi
+
+      - name: Setup | Pulp CLI
+        run: |
+          pipx install --force "pulp-cli==0.39.3"
+          pipx inject pulp-cli pulp_rpm
+
+      - name: Configure Pulp CLI
+        run: |
+          set -euo pipefail
+          PULP_API_URL="$(printf '%s' "${MECHA_PULP_API_URL}" | tr -d '[:space:]')"
+          PULP_API_URL="${PULP_API_URL%/}"
+          if [ -z "$PULP_API_URL" ]; then
+            echo "MECHA_PULP_API_URL is empty after trimming whitespace"
+            exit 1
+          fi
+
+          pulp config create \
+            --username "$MECHA_PULP_USERNAME" \
+            --password "$MECHA_PULP_PASSWORD" \
+            --base-url "$PULP_API_URL" \
+            --overwrite
+
+      - name: Publish RPM
+        continue-on-error: true
+        run: |
+          RPM_FILE=$(find ./build/rpm -name "mechanix-terminal*.rpm" -type f | head -n1)
+          echo "[INFO] Publishing RPM: $RPM_FILE"
+
+          pulp rpm content upload --repository="${{ vars.MECHA_PULP_RPMS_REPOSITORY_NAME }}" --file="$RPM_FILE"
+
+          PUB_HREF=$(pulp rpm publication create \
+            --repository="${{ vars.MECHA_PULP_RPMS_REPOSITORY_NAME }}" | jq -r '.pulp_href')
+
+          pulp rpm distribution update \
+            --name="${{ vars.MECHA_PULP_RPMS_REPOSITORY_NAME }}" \
+            --base-path="${{ vars.MECHA_PULP_RPMS_REPOSITORY_NAME }}" \
+            --publication="$PUB_HREF"
+
+      - name: Upload Artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mechanix-terminal
+          path: |
+            ./build/elinux/arm64/release/bundle/
+            ./build/elinux/aarch64/release/bundle/
+            ./build/rpm/*.rpm
