@@ -8,7 +8,7 @@ crate-type = ["cdylib", "staticlib"]
 
 [dependencies]
 flutter_rust_bridge = "=2.11.1"
-alacritty_terminal = { path = "../../alacritty/alacritty_terminal" }
+alacritty_terminal = { git = "https://github.com/alacritty/alacritty.git", branch = "master" }
 portable-pty = "0.8"
 vte = "0.15.0"
 parking_lot = "0.12.0"
