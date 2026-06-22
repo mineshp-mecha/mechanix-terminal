@@ -105,6 +105,66 @@ endif()
 # Install the Rust library for eLinux
 set(RUST_LIB_NAME "librust_lib_mechanix_terminal.so")
 
+# --- ObjectBox Library Setup ---
+set(OBX_VERSION "5.3.2")
+if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+    set(OBX_ARCH "aarch64")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+    set(OBX_ARCH "x64")
+else()
+    message(FATAL_ERROR "Unsupported architecture for ObjectBox: ${CMAKE_SYSTEM_PROCESSOR}")
+endif()
+
+set(OBX_NAME "objectbox-linux-${OBX_ARCH}")
+set(OBX_TARBALL "${OBX_NAME}.tar.gz")
+set(OBX_URL "https://github.com/objectbox/objectbox-c/releases/download/v${OBX_VERSION}/${OBX_TARBALL}")
+
+# Version-scoped cache dir so a version bump always triggers a fresh download
+set(OBX_LIB_DIR "${CMAKE_CURRENT_BINARY_DIR}/objectbox-${OBX_VERSION}-${OBX_ARCH}")
+set(OBX_SO_FILE "${OBX_LIB_DIR}/lib/libobjectbox.so")
+
+if(NOT EXISTS "${OBX_SO_FILE}")
+    message(STATUS "Downloading ObjectBox ${OBX_VERSION} for ${OBX_ARCH}...")
+
+    set(OBX_TARBALL_PATH "${CMAKE_CURRENT_BINARY_DIR}/${OBX_TARBALL}")
+
+    file(DOWNLOAD "${OBX_URL}" "${OBX_TARBALL_PATH}"
+        SHOW_PROGRESS
+        STATUS OBX_DL_STATUS
+        TLS_VERIFY ON
+        TIMEOUT 120
+    )
+
+    list(GET OBX_DL_STATUS 0 OBX_DL_ERR)
+    list(GET OBX_DL_STATUS 1 OBX_DL_MSG)
+    if(OBX_DL_ERR)
+        file(REMOVE "${OBX_TARBALL_PATH}")
+        message(FATAL_ERROR "Failed to download ObjectBox from ${OBX_URL}: ${OBX_DL_MSG}")
+    endif()
+
+    file(MAKE_DIRECTORY "${OBX_LIB_DIR}")
+    execute_process(
+        COMMAND ${CMAKE_COMMAND} -E tar xzf "${OBX_TARBALL_PATH}"
+        WORKING_DIRECTORY "${OBX_LIB_DIR}"
+        RESULT_VARIABLE OBX_TAR_ERR
+    )
+    if(OBX_TAR_ERR)
+        message(FATAL_ERROR "Failed to extract ObjectBox tarball")
+    endif()
+
+    file(REMOVE "${OBX_TARBALL_PATH}")
+
+    if(NOT EXISTS "${OBX_SO_FILE}")
+        message(FATAL_ERROR "ObjectBox archive extracted but ${OBX_SO_FILE} was not found")
+    endif()
+endif()
+
+# Expose as a proper imported target instead of a raw path
+add_library(objectbox SHARED IMPORTED GLOBAL)
+set_target_properties(objectbox PROPERTIES
+    IMPORTED_LOCATION "${OBX_SO_FILE}"
+    INTERFACE_INCLUDE_DIRECTORIES "${OBX_LIB_DIR}/include"
+)
 # Check if we are cross-compiling for ARM64
 if(CMAKE_SYSTEM_PROCESSOR STREQUAL "aarch64" OR CMAKE_LIBRARY_ARCHITECTURE STREQUAL "aarch64-linux-gnu")
     set(RUST_TARGET "aarch64-unknown-linux-gnu")
@@ -119,3 +179,6 @@ else()
 endif()
 
 install(FILES "${RUST_LIB_SOURCE}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}" COMPONENT Runtime)
+
+# Add ObjectBox library installation
+install(FILES "${OBX_SO_FILE}" DESTINATION "${INSTALL_BUNDLE_LIB_DIR}" COMPONENT Runtime)

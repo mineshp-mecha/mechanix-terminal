@@ -113,9 +113,9 @@ LD_LIBRARY_PATH=./lib ./mechanix_terminal -b . -s 1 -w 540 -h 620
 you need to manually cross-compile the Rust library for ARM64 and ensure it is placed in the lib/ directory of your deployment bundle.
 cd mechanix_terminal/rust
 
-## Use CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER to point to your cross-compiler
+#### Use CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER to point to your cross-compiler
 
 ```bash
-CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc \
+CARGO_TARGET_AARCH64_UNKNOWN_LINUX_GNU_LINKER=aarch64-linux-gnu-gcc
 cargo build --release --target aarch64-unknown-linux-gnu
 ```
