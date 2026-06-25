@@ -170,6 +170,7 @@ def copy-artifact [src: path, dest: path] {
 def create-launcher [dest: path, binary_name: string, pkg_name: string] {
     let launcher = $"#!/bin/sh
 APPDIR=\"/usr/share/mechanix/($pkg_name)\"
+export LD_LIBRARY_PATH=\"\$APPDIR/lib:\$LD_LIBRARY_PATH\"
 exec \"$APPDIR/($binary_name)\" --bundle=\"$APPDIR\" \"$@\"
 "
     $launcher | save -f $dest
