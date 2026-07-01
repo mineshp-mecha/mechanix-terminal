@@ -107,7 +107,6 @@ set(RUST_LIB_NAME "librust_lib_mechanix_terminal.so")
 
 # --- ObjectBox Library Setup ---
 set(OBX_VERSION "5.3.2")
-
 if(CMAKE_CXX_COMPILER_TARGET MATCHES "aarch64|arm64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
     set(OBX_ARCH "aarch64")
 elseif(CMAKE_CXX_COMPILER_TARGET MATCHES "x86_64|AMD64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
