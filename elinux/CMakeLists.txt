@@ -107,12 +107,13 @@ set(RUST_LIB_NAME "librust_lib_mechanix_terminal.so")
 
 # --- ObjectBox Library Setup ---
 set(OBX_VERSION "5.3.2")
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+
+if(CMAKE_CXX_COMPILER_TARGET MATCHES "aarch64|arm64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
     set(OBX_ARCH "aarch64")
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
+elseif(CMAKE_CXX_COMPILER_TARGET MATCHES "x86_64|AMD64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64")
     set(OBX_ARCH "x64")
 else()
-    message(FATAL_ERROR "Unsupported architecture for ObjectBox: ${CMAKE_SYSTEM_PROCESSOR}")
+    message(FATAL_ERROR "Unsupported architecture for ObjectBox. Target: ${CMAKE_CXX_COMPILER_TARGET}, Processor: ${CMAKE_SYSTEM_PROCESSOR}")
 endif()
 
 set(OBX_NAME "objectbox-linux-${OBX_ARCH}")
