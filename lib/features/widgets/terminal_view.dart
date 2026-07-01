@@ -1,8 +1,9 @@
 import 'dart:async';
 import 'dart:ui' as ui;
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter/gestures.dart';
 import 'package:mechanix_terminal/core/utils/constants.dart';
 import 'package:mechanix_terminal/features/data/settings.dart';
 import 'package:mechanix_terminal/features/widgets/terminal_painter.dart';
@@ -239,6 +240,7 @@ class _TerminalViewState extends State<TerminalView>
     // Compute char metrics once here so pointer handlers and painter agree.
     final measureStyle = ui.TextStyle(
       fontFamily: fontFamily,
+      fontFamilyFallback: const ['monospace'],
       fontSize: fontSize,
     );
     final measureParaStyle = ui.ParagraphStyle(
@@ -327,125 +329,142 @@ class _TerminalViewState extends State<TerminalView>
               }
             }
           },
-          child: KeyboardListener(
-            focusNode: _focusNode,
-            autofocus: true,
-            onKeyEvent: (KeyEvent event) {
-              if (event is KeyDownEvent || event is KeyRepeatEvent) {
-                final key = event.logicalKey;
-                final isAlt = HardwareKeyboard.instance.isAltPressed;
-                final isCtrl = HardwareKeyboard.instance.isControlPressed;
-                final isShift = HardwareKeyboard.instance.isShiftPressed;
-                final isMeta = HardwareKeyboard.instance.isMetaPressed;
-
-                final isKeyC =
-                    key == LogicalKeyboardKey.keyC ||
-                    event.physicalKey == PhysicalKeyboardKey.keyC ||
-                    key.keyLabel.toLowerCase() == 'c';
-                final isKeyV =
-                    key == LogicalKeyboardKey.keyV ||
-                    event.physicalKey == PhysicalKeyboardKey.keyV ||
-                    key.keyLabel.toLowerCase() == 'v';
-
-                final isCopy =
-                    (isCtrl && isShift && isKeyC) || (isMeta && isKeyC);
-                final isPaste =
-                    (isCtrl && isShift && isKeyV) || (isMeta && isKeyV);
-
-                final isModifier =
-                    key == LogicalKeyboardKey.controlLeft ||
-                    key == LogicalKeyboardKey.controlRight ||
-                    key == LogicalKeyboardKey.shiftLeft ||
-                    key == LogicalKeyboardKey.shiftRight ||
-                    key == LogicalKeyboardKey.altLeft ||
-                    key == LogicalKeyboardKey.altRight ||
-                    key == LogicalKeyboardKey.metaLeft ||
-                    key == LogicalKeyboardKey.metaRight;
-
-                // Clear selection on any key except modifiers and Copy/Paste shortcuts
-                if (!isCopy && !isPaste && !isModifier) {
-                  if (_selectionStart != null) {
-                    setState(() {
-                      _selectionStart = null;
-                      _selectionEnd = null;
-                    });
-                  }
-                }
-
-                // Copy selection to clipboard
-                if (isCopy) {
-                  final frame = _frame;
-                  if (frame != null) {
-                    final text = _extractSelection(frame);
-                    if (text.trim().isNotEmpty) {
-                      Clipboard.setData(ClipboardData(text: text));
-                    }
-                  }
-                  return;
-                }
-
-                // Paste clipboard into terminal
-                if (isPaste) {
-                  Clipboard.getData(Clipboard.kTextPlain).then((data) {
-                    final text = data?.text;
-                    if (text != null && text.isNotEmpty) {
-                      pasteTerminal(id: widget.terminalId, input: text);
-                    }
-                  });
-                  return;
-                }
-
-                if (isAlt && !isCtrl && !isShift) {
-                  final int? targetIndex = switch (key) {
-                    LogicalKeyboardKey.digit1 => 0,
-                    LogicalKeyboardKey.digit2 => 1,
-                    LogicalKeyboardKey.digit3 => 2,
-                    LogicalKeyboardKey.digit4 => 3,
-                    LogicalKeyboardKey.digit5 => 4,
-                    LogicalKeyboardKey.digit6 => 5,
-                    LogicalKeyboardKey.digit7 => 6,
-                    LogicalKeyboardKey.digit8 => 7,
-                    LogicalKeyboardKey.digit9 => 8,
-                    LogicalKeyboardKey.digit0 => 9,
-                    _ => null,
-                  };
-
-                  if (targetIndex != null &&
-                      targetIndex < widget.tabController.length) {
-                    widget.tabController.animateTo(targetIndex);
-                    return;
-                  }
-                }
-
-                final input = _keyEventToTerminalInput(event);
-                if (input != null) {
-                  sendInput(id: widget.terminalId, input: input);
-                }
-              }
+          child: Shortcuts(
+            shortcuts: <ShortcutActivator, Intent>{
+              const SingleActivator(LogicalKeyboardKey.tab): const _TabIntent(),
             },
-            child: Container(
-              color:
-                  _parseHexColor(widget.settings.colorBackground) ??
-                  Theme.of(context).scaffoldBackgroundColor,
-              child: CustomPaint(
-                painter: _frame != null
-                    ? TerminalPainter(
-                        _frame!,
-                        fontSize,
-                        _parseHexColor(widget.settings.colorForeground) ??
-                            Theme.of(context).textTheme.bodyMedium?.color ??
-                            Colors.white,
-                        _parseHexColor(widget.settings.colorBackground) ??
-                            Theme.of(context).scaffoldBackgroundColor,
-                        _parseHexColor(widget.settings.colorCursor) ??
-                            Colors.white70,
-                        fontFamily,
-                        widget.terminalId,
-                        selectionStart: _selectionStart,
-                        selectionEnd: _selectionEnd,
-                      )
-                    : null,
-                child: Container(),
+            child: Actions(
+              actions: <Type, Action<Intent>>{
+                _TabIntent: CallbackAction<_TabIntent>(
+                  onInvoke: (intent) {
+                    sendInput(id: widget.terminalId, input: '\t');
+                    return null;
+                  },
+                ),
+              },
+              child: Focus(
+                focusNode: _focusNode,
+                autofocus: true,
+                onKeyEvent: (FocusNode node, KeyEvent event) {
+                  if (event is KeyDownEvent || event is KeyRepeatEvent) {
+                    final key = event.logicalKey;
+                    final isAlt = HardwareKeyboard.instance.isAltPressed;
+                    final isCtrl = HardwareKeyboard.instance.isControlPressed;
+                    final isShift = HardwareKeyboard.instance.isShiftPressed;
+                    final isMeta = HardwareKeyboard.instance.isMetaPressed;
+
+                    final isKeyC =
+                        key == LogicalKeyboardKey.keyC ||
+                        event.physicalKey == PhysicalKeyboardKey.keyC ||
+                        key.keyLabel.toLowerCase() == 'c';
+                    final isKeyV =
+                        key == LogicalKeyboardKey.keyV ||
+                        event.physicalKey == PhysicalKeyboardKey.keyV ||
+                        key.keyLabel.toLowerCase() == 'v';
+
+                    final isCopy =
+                        (isCtrl && isShift && isKeyC) || (isMeta && isKeyC);
+                    final isPaste =
+                        (isCtrl && isShift && isKeyV) || (isMeta && isKeyV);
+
+                    final isModifier =
+                        key == LogicalKeyboardKey.controlLeft ||
+                        key == LogicalKeyboardKey.controlRight ||
+                        key == LogicalKeyboardKey.shiftLeft ||
+                        key == LogicalKeyboardKey.shiftRight ||
+                        key == LogicalKeyboardKey.altLeft ||
+                        key == LogicalKeyboardKey.altRight ||
+                        key == LogicalKeyboardKey.metaLeft ||
+                        key == LogicalKeyboardKey.metaRight;
+
+                    // Clear selection on any key except modifiers and Copy/Paste shortcuts
+                    if (!isCopy && !isPaste && !isModifier) {
+                      if (_selectionStart != null) {
+                        setState(() {
+                          _selectionStart = null;
+                          _selectionEnd = null;
+                        });
+                      }
+                    }
+
+                    // Copy selection to clipboard
+                    if (isCopy) {
+                      final frame = _frame;
+                      if (frame != null) {
+                        final text = _extractSelection(frame);
+                        if (text.trim().isNotEmpty) {
+                          Clipboard.setData(ClipboardData(text: text));
+                        }
+                      }
+                      return KeyEventResult.handled;
+                    }
+
+                    // Paste clipboard into terminal
+                    if (isPaste) {
+                      Clipboard.getData(Clipboard.kTextPlain).then((data) {
+                        final text = data?.text;
+                        if (text != null && text.isNotEmpty) {
+                          pasteTerminal(id: widget.terminalId, input: text);
+                        }
+                      });
+                      return KeyEventResult.handled;
+                    }
+
+                    if (isAlt && !isCtrl && !isShift) {
+                      final int? targetIndex = switch (key) {
+                        LogicalKeyboardKey.digit1 => 0,
+                        LogicalKeyboardKey.digit2 => 1,
+                        LogicalKeyboardKey.digit3 => 2,
+                        LogicalKeyboardKey.digit4 => 3,
+                        LogicalKeyboardKey.digit5 => 4,
+                        LogicalKeyboardKey.digit6 => 5,
+                        LogicalKeyboardKey.digit7 => 6,
+                        LogicalKeyboardKey.digit8 => 7,
+                        LogicalKeyboardKey.digit9 => 8,
+                        LogicalKeyboardKey.digit0 => 9,
+                        _ => null,
+                      };
+
+                      if (targetIndex != null &&
+                          targetIndex < widget.tabController.length) {
+                        widget.tabController.animateTo(targetIndex);
+                        return KeyEventResult.handled;
+                      }
+                    }
+
+                    final input = _keyEventToTerminalInput(event);
+                    if (input != null) {
+                      sendInput(id: widget.terminalId, input: input);
+                      return KeyEventResult.handled;
+                    }
+                  }
+                  return KeyEventResult.ignored;
+                },
+                child: Container(
+                  color:
+                      _parseHexColor(widget.settings.colorBackground) ??
+                      Theme.of(context).scaffoldBackgroundColor,
+                  child: CustomPaint(
+                    painter: _frame != null
+                        ? TerminalPainter(
+                            _frame!,
+                            fontSize,
+                            _parseHexColor(widget.settings.colorForeground) ??
+                                Theme.of(context).textTheme.bodyMedium?.color ??
+                                Colors.white,
+                            _parseHexColor(widget.settings.colorBackground) ??
+                                Theme.of(context).scaffoldBackgroundColor,
+                            _parseHexColor(widget.settings.colorCursor) ??
+                                Colors.white70,
+                            fontFamily,
+                            widget.terminalId,
+                            selectionStart: _selectionStart,
+                            selectionEnd: _selectionEnd,
+                          )
+                        : null,
+                    child: Container(),
+                  ),
+                ),
               ),
             ),
           ),
@@ -463,4 +482,8 @@ class _TerminalViewState extends State<TerminalView>
     if (parsed == null) return null;
     return Color(parsed);
   }
+}
+
+class _TabIntent extends Intent {
+  const _TabIntent();
 }
