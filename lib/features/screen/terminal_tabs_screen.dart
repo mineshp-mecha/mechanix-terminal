@@ -91,9 +91,7 @@ class _TerminalTabsState extends State<TerminalTabs>
         }
         if (states.contains(WidgetState.hovered) ||
             states.contains(WidgetState.focused)) {
-          return Colors.white.withValues(
-            alpha: 0.05,
-          );
+          return Colors.white.withValues(alpha: 0.05);
         }
         return null;
       }),
